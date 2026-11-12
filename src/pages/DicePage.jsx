@@ -1,130 +1,175 @@
-import { useState } from "react";
-import { Dice1, Dices, RotateCcw, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Dice1, Dice5, Dices, RotateCcw, Sparkles, Users, UserRound } from "lucide-react";
+import { supabase } from "../lib/supabase.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 const diceOptions = [4, 6, 8, 10, 12, 20, 100];
 
 function rollDie(sides) {
-  if (!globalThis.crypto?.getRandomValues) {
-    throw new Error("Seu navegador não oferece um gerador seguro de números aleatórios.");
-  }
-
+  if (!globalThis.crypto?.getRandomValues) throw new Error("Seu navegador não oferece um gerador seguro de números aleatórios.");
   const range = 0x1_0000_0000;
   const limit = range - (range % sides);
   const values = new Uint32Array(1);
   let value;
-
-  do {
-    globalThis.crypto.getRandomValues(values);
-    value = values[0];
-  } while (value >= limit);
-
+  do { globalThis.crypto.getRandomValues(values); value = values[0]; } while (value >= limit);
   return (value % sides) + 1;
 }
 
+function formatDate(value) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
 export default function DicePage() {
-  const [sides, setSides] = useState(20);
-  const [result, setResult] = useState(null);
+  const { user, profile } = useAuth();
+  const [sides, setSides] = useState(profile?.preferences?.defaultDie ?? 20);
+  const [quantity, setQuantity] = useState(1);
+  const [modifier, setModifier] = useState(0);
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignId, setCampaignId] = useState("");
+  const [scope, setScope] = useState("personal");
   const [history, setHistory] = useState([]);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [rolling, setRolling] = useState(false);
   const [error, setError] = useState("");
 
-  function handleRoll() {
-    try {
-      const value = rollDie(sides);
-      const entry = {
-        id: globalThis.crypto.randomUUID(),
-        sides,
-        value,
-        createdAt: new Date().toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
+  useEffect(() => {
+    setSides(profile?.preferences?.defaultDie ?? 20);
+  }, [profile?.preferences?.defaultDie]);
 
-      setResult(entry);
-      setHistory((current) => [entry, ...current].slice(0, 8));
-      setError("");
-    } catch (rollError) {
-      setError(rollError instanceof Error ? rollError.message : "Não foi possível rolar o dado.");
+  useEffect(() => {
+    let active = true;
+    async function loadCampaigns() {
+      if (!supabase || !user?.id) { setLoading(false); return; }
+      const { data, error: campaignError } = await supabase
+        .from("campaign_members")
+        .select("campaign_id, role, campaigns(id, title)")
+        .eq("user_id", user.id);
+      if (!active) return;
+      if (campaignError) { setError(campaignError.message); setLoading(false); return; }
+      const available = (data ?? []).filter((item) => item.campaigns?.id);
+      setCampaigns(available);
+      if (available.length) setCampaignId((current) => current || available[0].campaign_id);
+      setLoading(false);
     }
+    loadCampaigns();
+    return () => { active = false; };
+  }, [user?.id]);
+
+  const selectedCampaign = useMemo(
+    () => campaigns.find((item) => item.campaign_id === campaignId),
+    [campaigns, campaignId],
+  );
+
+  const loadHistory = useCallback(async () => {
+    if (!supabase || !user?.id) return;
+    setLoading(true); setError("");
+    try {
+      let request = supabase.from("roll_history")
+        .select("id, user_id, scope, formula, rolls, total, created_at, profiles(username)")
+        .eq("scope", scope)
+        .order("created_at", { ascending: false })
+        .limit(40);
+
+      if (campaignId) request = request.eq("campaign_id", campaignId);
+      else request = request.is("campaign_id", null).eq("scope", "personal");
+
+      const { data, error: historyError } = await request;
+      if (historyError) throw historyError;
+      setHistory(data ?? []);
+    } catch (historyError) {
+      setError(historyError instanceof Error ? historyError.message : "Não foi possível carregar o histórico.");
+    } finally { setLoading(false); }
+  }, [campaignId, scope, user?.id]);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  function handleRoll() {
+    if (!supabase || !user?.id || rolling) return;
+    if (scope === "campaign" && !campaignId) {
+      setError("Selecione uma campanha para compartilhar a rolagem.");
+      return;
+    }
+    setRolling(true); setError("");
+    try {
+      const rolls = Array.from({ length: quantity }, () => ({ sides, value: rollDie(sides) }));
+      const sum = rolls.reduce((total, die) => total + die.value, 0);
+      const total = sum + Number(modifier || 0);
+      const formula = `${quantity}d${sides}${modifier >= 0 ? "+" : ""}${modifier || 0}`;
+      const entry = { id: crypto.randomUUID(), formula, rolls, total, scope, campaign_id: campaignId || null, created_at: new Date().toISOString(), profiles: { username: profile?.username ?? "você" } };
+      setResult(entry);
+      supabase.from("roll_history").insert({
+        user_id: user.id,
+        campaign_id: campaignId || null,
+        scope,
+        formula,
+        rolls,
+        total,
+      }).select("id").single().then(({ error: insertError }) => {
+        if (insertError) setError(insertError.message);
+        else loadHistory();
+      });
+    } catch (rollError) {
+      setError(rollError instanceof Error ? rollError.message : "Não foi possível rolar os dados.");
+    } finally { setRolling(false); }
   }
 
-  function clearHistory() {
-    setHistory([]);
-    setResult(null);
+  async function clearHistory() {
+    if (!supabase || !user?.id || !history.length) return;
+    const ownIds = history.filter((entry) => entry.user_id === user.id).map((entry) => entry.id);
+    if (!ownIds.length) { setError("Você não possui rolagens próprias para limpar neste histórico."); return; }
     setError("");
+    const { error: deleteError } = await supabase.from("roll_history").delete().in("id", ownIds);
+    if (deleteError) setError(deleteError.message);
+    else { setResult(null); await loadHistory(); }
   }
+
+  const isShared = scope === "campaign";
+  const canShare = Boolean(campaignId);
+  const canUseCampaignHistory = Boolean(campaignId);
 
   return (
-    <section className="module-page dice-page">
+    <section className="module-page dice-page dice-page-expanded">
       <p className="eyebrow"><Sparkles size={14} /> A SORTE ESTÁ LANÇADA</p>
       <h1>Rolagem de dados</h1>
-      <p className="page-lead">Escolha seu dado, respire fundo e deixe o destino decidir.</p>
+      <p className="page-lead">Monte sua rolagem, acompanhe cada resultado e consulte os registros da campanha.</p>
+
+      <div className="dice-context panel">
+        <label><span>Campanha vinculada</span><select value={campaignId} onChange={(event) => setCampaignId(event.target.value)}><option value="">Rolagem sem campanha</option>{campaigns.map((item) => <option value={item.campaign_id} key={item.campaign_id}>{item.campaigns.title}</option>)}</select></label>
+        <div className="dice-scope-control" role="group" aria-label="Visibilidade do histórico">
+          <button type="button" className={!isShared ? "dice-scope--active" : ""} onClick={() => setScope("personal")}><UserRound size={14} /> Pessoal</button>
+          <button type="button" className={isShared ? "dice-scope--active" : ""} onClick={() => setScope("campaign")} disabled={!canShare}><Users size={14} /> Campanha</button>
+        </div>
+        <p>{isShared ? "Todos os membros desta campanha podem consultar as rolagens compartilhadas." : campaignId ? "Somente você e o mestre desta campanha podem consultar este histórico pessoal." : "Este histórico é privado e visível apenas para você."}</p>
+      </div>
 
       <div className="dice-layout">
         <div className="dice-stage panel">
-          <div className="dice-stage-top">
-            <span className="stage-label">MESA DE ROLAGEM</span>
-            <Dices size={19} />
-          </div>
+          <div className="dice-stage-top"><span className="stage-label">MESA DE ROLAGEM</span><Dices size={19} /></div>
           <div className="dice-display" aria-live="polite" aria-atomic="true">
-            <div className={`dice-shape ${result ? "dice-shape--rolled" : ""}`}>
-              <Dice5 size={48} strokeWidth={1.15} />
-              <span>{result ? result.value : "?"}</span>
-            </div>
-            <p>{result ? `Resultado do d${result.sides}` : "Aguardando sua rolagem"}</p>
+            <div className={`dice-shape ${result ? "dice-shape--rolled" : ""}`}><Dice5 size={48} strokeWidth={1.15} /><span>{result ? result.total : "?"}</span></div>
+            <p>{result ? `${result.formula} = ${result.total}` : "Aguardando sua rolagem"}</p>
           </div>
           <div className="dice-options" role="group" aria-label="Selecionar tipo de dado">
-            {diceOptions.map((option) => (
-              <button
-                className={`dice-option ${sides === option ? "dice-option--active" : ""}`}
-                type="button"
-                key={option}
-                onClick={() => setSides(option)}
-                aria-pressed={sides === option}
-              >
-                d{option}
-              </button>
-            ))}
+            {diceOptions.map((option) => <button className={`dice-option ${sides === option ? "dice-option--active" : ""}`} type="button" key={option} onClick={() => setSides(option)} aria-pressed={sides === option}>d{option}</button>)}
           </div>
-          <button className="button button-primary dice-roll-button" type="button" onClick={handleRoll}>
-            <Dice1 size={19} /> Rolar d{sides}
-          </button>
+          <div className="dice-input-grid">
+            <label><span>Quantidade</span><input type="number" min="1" max="20" value={quantity} onChange={(event) => setQuantity(Math.min(20, Math.max(1, Number(event.target.value) || 1)))} /></label>
+            <label><span>Modificador</span><input type="number" min="-1000" max="1000" value={modifier} onChange={(event) => setModifier(Math.min(1000, Math.max(-1000, Number(event.target.value) || 0)))} /></label>
+          </div>
+          <div className="dice-formula-preview">{quantity}d{sides}{modifier >= 0 ? "+" : ""}{modifier}</div>
+          <button className="button button-primary dice-roll-button" type="button" onClick={handleRoll} disabled={rolling || (isShared && !canUseCampaignHistory)}><Dice1 size={19} />{rolling ? "Rolando..." : "Rolar dados"}</button>
           {error && <p className="form-error" role="alert">{error}</p>}
+          {result && <div className="dice-result-breakdown"><span>Dados: {result.rolls.map((die) => die.value).join(" + ")}</span><strong>Total: {result.total}</strong></div>}
         </div>
 
         <aside className="panel dice-history">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">SUAS ÚLTIMAS JOGADAS</p>
-              <h2>Histórico</h2>
-            </div>
-            <button
-              className="icon-button"
-              type="button"
-              onClick={clearHistory}
-              disabled={history.length === 0}
-              aria-label="Limpar histórico"
-              title="Limpar histórico"
-            >
-              <RotateCcw size={16} />
-            </button>
-          </div>
-          {history.length > 0 ? (
-            <ul className="roll-history">
-              {history.map((entry) => (
-                <li key={entry.id}>
-                  <span className="history-die">d{entry.sides}</span>
-                  <span className="history-time">{entry.createdAt}</span>
-                  <strong>{entry.value}</strong>
-                </li>
-              ))}
+          <div className="panel-heading"><div><p className="eyebrow">{isShared ? "REGISTRO DO GRUPO" : "SUAS ÚLTIMAS JOGADAS"}</p><h2>{isShared ? "Histórico da campanha" : "Histórico pessoal"}</h2></div><button className="icon-button" type="button" onClick={clearHistory} disabled={!history.some((entry) => entry.user_id === user?.id)} aria-label="Limpar minhas rolagens" title="Limpar minhas rolagens"><RotateCcw size={16} /></button></div>
+          {loading ? <div className="history-empty"><Dices size={24} /><p>Carregando histórico...</p></div> : history.length ? (
+            <ul className="roll-history roll-history-detailed">
+              {history.map((entry) => <li key={entry.id}><div className="history-entry-main"><span className="history-die">{entry.formula}</span><strong>{entry.total}</strong></div><div className="history-entry-meta"><span>@{entry.profiles?.username ?? (entry.user_id === user?.id ? profile?.username : "aventureiro")}</span><time dateTime={entry.created_at}>{formatDate(entry.created_at)}</time></div><span className="history-roll-values">{(entry.rolls ?? []).map((die) => die.value).join(" · ")}</span></li>)}
             </ul>
-          ) : (
-            <div className="history-empty">
-              <Dices size={24} />
-              <p>Suas rolagens aparecerão aqui.</p>
-            </div>
-          )}
+          ) : <div className="history-empty"><Dices size={24} /><p>{isShared ? "Ainda não há rolagens compartilhadas." : "Suas rolagens pessoais aparecerão aqui."}</p></div>}
         </aside>
       </div>
     </section>
