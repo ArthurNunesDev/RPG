@@ -1,93 +1,49 @@
 # REALMS
 
-Plataforma multiplayer para criar campanhas e jogar diferentes sistemas de RPG com amigos.
+Plataforma multiplayer para criar campanhas e jogar RPG com amigos.
 
-<https://arthurnunesdev.github.io/RPG/>
+**[Acessar o Site](https://arthurnunesdev.github.io/RPG/)**
 
-## Publicação
+## Sobre
 
-O REALMS é publicado pelo **GitHub Pages**, usando GitHub Actions. Cada push na branch `main` executa o build do Vite e publica o conteúdo de `dist/`.
+- Campanhas com sistemas de RPG oficiais e personalizados.
+- Sessões com PIN gerado pelo mestre e entrada por código.
+- Perfis de mestre, jogador e observador.
+- Personagens, aliados e inimigos.
+- Mapas, trilhas sonoras e rolagem de dados dentro da campanha.
+- Amigos e status de presença em tempo real.
 
-- **Site:** https://arthurnunesdev.github.io/RPG/
-- **Repositório:** https://github.com/ArthurNunesDev/RPG
-- **Hospedagem:** GitHub Pages
-- **Deploy:** GitHub Actions (`.github/workflows/deploy-pages.yml`)
+## Tecnologias
 
-O workflow gera também um `404.html` a partir do build para manter as rotas do React Router acessíveis ao atualizar ou abrir links diretamente.
-
-## Stack
-
-- React 19 + Vite 8
-- JavaScript (ES modules)
-- Supabase: PostgreSQL, Auth, Realtime e Edge Functions
-- React Router
-- Lucide React
+React 19 · Vite 8 · JavaScript · Supabase · React Router · Lucide
 
 ## Executar localmente
 
-1. Instale as dependências:
+```bash
+npm install
+```
 
-   ```bash
-   npm install
-   ```
+Crie o arquivo `.env.local` com as credenciais públicas do projeto Supabase:
 
-2. Copie `.env.example` para `.env.local` e configure:
+```env
+VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
 
-   ```env
-   VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
-   VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-   ```
+Inicie o ambiente:
 
-3. Inicie o servidor:
+```bash
+npm run dev
+```
 
-   ```bash
-   npm run dev
-   ```
+Para gerar a versão de produção:
 
-4. Gere a versão de produção:
+```bash
+npm run build
+```
 
-   ```bash
-   npm run build
-   ```
+## Publicação
 
-## Configuração do Supabase
+O site é hospedado no **GitHub Pages**. Commits na branch `main` acionam automaticamente o workflow de build e publicação do GitHub Actions.
 
-Projeto dedicado: `REALMS`  
-Região: `sa-east-1`  
-Project ref: `ktklhzngmtmgexzpofms`  
-URL: https://ktklhzngmtmgexzpofms.supabase.co
-
-No painel do Supabase, em **Authentication → URL Configuration**, configure:
-
-- **Site URL:** `https://arthurnunesdev.github.io/RPG/`
-- **Redirect URLs:** `https://arthurnunesdev.github.io/RPG/**`
-
-A Edge Function `realm-sessions` está implantada com verificação JWT habilitada. Ela valida o usuário autenticado, gera PINs de sessão e controla entrada, consulta, saída e encerramento das sessões. A chave `service_role` permanece exclusivamente no ambiente gerenciado pelo Supabase.
-
-Nunca coloque `service_role`, senhas ou segredos em variáveis `VITE_*`.
-
-## Funcionalidades implementadas
-
-- Cadastro, login, recuperação e atualização de senha pelo Supabase Auth.
-- Preferência de experiência: mestre, jogador ou observador.
-- Biblioteca com sistemas oficiais e sistemas personalizados.
-- CRUD de campanhas, com sistema de RPG vinculado.
-- Personagens de jogadores e NPCs do mestre, classificados como aliados, inimigos ou neutros.
-- Sessões permanentes por campanha: PIN único de 8 caracteres gerado ao criar a campanha, válido até sua exclusão, com entrada de participantes por código.
-- Papéis de mestre, jogador e observador aplicados por campanha.
-- Chat em tempo real da sessão, com observadores em modo somente leitura.
-- Políticas RLS para proteger dados e ações por usuário, campanha e sessão.
-- Favicon próprio com a identidade visual do REALMS.
-
-## Estrutura de dados
-
-O schema inclui:
-
-- Perfis vinculados ao Supabase Auth.
-- Sistemas de RPG com schema de ficha e regras em JSONB.
-- Campanhas e participantes com papéis de mestre, jogador ou observador.
-- Personagens de jogadores e NPCs controlados pelo mestre.
-- Uma sessão permanente por campanha, com PIN privado e único; sair da mesa não encerra nem invalida o código.
-- Mensagens isoladas por sessão.
-
-As tabelas privadas de sessão não são acessíveis diretamente pelo cliente. A Edge Function realiza as operações privilegiadas após validar o JWT. As mensagens usam RLS e Realtime para permitir colaboração dentro da sessão.
+Nunca exponha chaves secretas ou a chave `service_role` no código do frontend.
