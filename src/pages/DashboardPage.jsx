@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, Compass, Dice5, Eye, Plus, Sparkles, Swords, UserRound, Crown, Users } from "lucide-react";
+import { ArrowUpRight, BookOpen, Compass, Dice5, Eye, Sparkles, Swords, UserRound, Crown, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { isSupabaseConfigured } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
