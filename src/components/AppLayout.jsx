@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, Compass, Dice5, LayoutDashboard, Library, LogOut, Menu, Settings, Sparkles, Swords, Users, UserRound, X, Crown, Eye } from "lucide-react";
+import { ChevronLeft, LayoutDashboard, Library, LogOut, Menu, Settings, Sparkles, Swords, Users, UserRound, X, Crown, Eye } from "lucide-react";
 import { isSupabaseConfigured } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import "../styles/account.css";
 
-const pageNames = { "/": "Visão geral", "/campaigns": "Campanhas", "/characters": "Personagens", "/tabletop": "Mesa virtual", "/dice": "Rolagem de dados", "/library": "Biblioteca", "/friends": "Amigos", "/settings": "Configurações", "/account": "Minha conta" };
+const pageNames = { "/": "Visão geral", "/campaigns": "Campanhas", "/characters": "Personagens", "/library": "Biblioteca", "/friends": "Amigos", "/settings": "Configurações", "/account": "Minha conta" };
 const roleLabels = { gm: "Mestre", player: "Jogador", observer: "Observador" };
 const roleIcons = { gm: Crown, player: Swords, observer: Eye };
 
@@ -23,10 +23,9 @@ export default function AppLayout() {
       { to: "/", label: "Visão geral", icon: LayoutDashboard, end: true },
       { to: "/campaigns", label: "Campanhas", icon: Swords },
       ...(role !== "observer" ? [{ to: "/characters", label: "Personagens", icon: UserRound }] : []),
-      { to: "/tabletop", label: role === "observer" ? "Assistir sessões" : "Mesa virtual", icon: Compass },
-      ...(role !== "observer" ? [{ to: "/dice", label: "Rolagem de dados", icon: Dice5 }] : []),
     ] },
-    ...(role !== "observer" ? [{ label: "Explorar", items: [{ to: "/library", label: "Biblioteca", icon: Library }, { to: "/friends", label: "Amigos", icon: Users }] }] : []),
+    { label: "Comunidade", items: [{ to: "/friends", label: "Amigos", icon: Users }] },
+    ...(role !== "observer" ? [{ label: "Explorar", items: [{ to: "/library", label: "Biblioteca", icon: Library }] }] : []),
   ];
 
   function closeMobileMenu() { setMobileOpen(false); }
