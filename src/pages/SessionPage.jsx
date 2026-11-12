@@ -238,7 +238,7 @@ export default function SessionPage() {
             <span className="eyebrow">CONTROLES DA SESSÃO</span>
             <p>{isGm ? "Você está conduzindo esta sessão." : isObserver ? "Você está assistindo à aventura." : "Você está participando desta aventura."}</p>
             
-            {session.status === "active" && <button className="session-leave-button" type="button" onClick={handleLeaveSession}} disabled={Boolean(busyAction)}><LogOut size={15} />{busyAction === "leave" ? "Saindo..." : "Sair da sessão"}</button>}
+            {session.status === "active" && <button className="session-leave-button" type="button" onClick={handleLeaveSession} disabled={Boolean(busyAction)}><LogOut size={15} />{busyAction === "leave" ? "Saindo..." : "Sair da sessão"}</button>}
             {session.status === "ended" && <Link className="button button-secondary session-back-button" to="/campaigns">Voltar às campanhas</Link>}
           </section>
         </aside>
