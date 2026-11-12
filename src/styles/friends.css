@@ -1,0 +1,35 @@
+.friends-page { max-width:1000px; margin:0 auto; }
+.friends-heading { display:flex; align-items:center; gap:15px; margin-bottom:20px; }
+.friends-heading-icon { display:grid; width:54px; height:54px; flex:0 0 auto; place-items:center; border:1px solid rgba(201,166,107,.24); border-radius:12px; color:var(--gold); background:var(--gold-soft); }
+.friends-heading h1 { margin:0; color:var(--text); font:400 32px "Marcellus",Georgia,serif; }
+.friends-heading .eyebrow { margin:0 0 5px; }
+.friends-heading .page-lead { margin:5px 0 0; }
+.friends-id-card,.friends-add { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:17px 19px; margin-bottom:13px; }
+.friends-id-card>div { display:flex; flex-direction:column; gap:5px; }
+.friends-id-card .eyebrow { margin:0; }
+.friends-id-card strong { color:var(--gold-bright); font:24px "Marcellus",Georgia,serif; letter-spacing:4px; }
+.friends-id-card span,.friends-add-copy span { color:var(--muted); font-size:10px; }
+.friends-add-copy { display:flex; align-items:center; gap:11px; color:var(--gold); }
+.friends-add-copy>div { display:flex; flex-direction:column; gap:4px; }
+.friends-add-copy strong { color:var(--text); font-size:12px; }
+.friends-add input { width:180px; min-height:38px; padding:0 10px; border:1px solid var(--line-strong); border-radius:7px; color:var(--text); background:var(--surface-raised); letter-spacing:2px; }
+.friends-notice,.friends-error { font-size:11px; }
+.friends-notice { color:var(--green); }.friends-error { color:var(--danger); }
+.friends-section { margin-top:23px; }
+.friends-section-heading { display:flex; align-items:center; gap:9px; margin-bottom:11px; }
+.friends-section-heading h2 { margin:0; color:var(--text); font:400 19px "Marcellus",Georgia,serif; }
+.friends-section-heading>span { display:grid; min-width:22px; height:22px; place-items:center; border-radius:50%; color:var(--gold-bright); background:var(--gold-soft); font-size:10px; }
+.friends-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.friend-row { display:flex; min-width:0; align-items:center; gap:11px; padding:12px; }
+.friend-avatar { display:grid; width:39px; height:39px; flex:0 0 auto; place-items:center; border:1px solid rgba(201,166,107,.2); border-radius:50%; color:var(--gold-bright); background:var(--gold-soft); font:18px "Marcellus",Georgia,serif; }
+.friend-copy { display:flex; min-width:0; flex:1; flex-direction:column; gap:5px; }
+.friend-copy strong { overflow:hidden; color:var(--text); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.friend-copy small { display:flex; align-items:center; gap:5px; color:var(--muted); font-size:9px; }
+.friend-status--online { color:#8fc49b; }.friend-status--inactive { color:#d3aa6d; }.friend-status--offline { color:#89838c; }
+.friend-remove { margin-left:auto; }
+.friends-toolbar { display:flex; margin-bottom:11px; }
+.friends-toolbar label { display:flex; width:min(100%,330px); min-height:36px; align-items:center; gap:8px; padding:0 10px; border:1px solid var(--line); border-radius:7px; color:var(--muted); }
+.friends-toolbar input { width:100%; border:0; outline:0; color:var(--text); background:transparent; font-size:10px; }
+.friends-empty { display:flex; min-height:140px; flex-direction:column; align-items:center; justify-content:center; gap:9px; color:var(--muted); font-size:11px; }
+.friends-empty strong { color:var(--text); font-size:12px; }
+@media(max-width:700px) { .friends-id-card,.friends-add { align-items:stretch; flex-direction:column; } .friends-add input { width:100%; } .friends-add .button { width:100%; } .friends-list { grid-template-columns:1fr; } }
