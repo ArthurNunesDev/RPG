@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import PresenceTracker from "../components/PresenceTracker.jsx";
 import DicePage from "./DicePage.jsx";
 import "../styles/session.css";
 
@@ -439,6 +440,7 @@ export default function SessionPage() {
 
   return (
     <main className="session-room">
+      <PresenceTracker />
       {mobileMenuOpen && <button className="room-sidebar-backdrop" type="button" aria-label="Fechar menu" onClick={() => setMobileMenuOpen(false)} />}
       <aside className={"room-sidebar" + (mobileMenuOpen ? " room-sidebar--open" : "")}>
         <div className="room-brand">
