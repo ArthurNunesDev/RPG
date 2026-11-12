@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Check, Copy, Eye, LogOut, MessageCircle, Send, Shield, Swords, Users } from "lucide-react";
+import { ArrowLeft, Check, Copy, Eye, LogOut, MessageCircle, Send, Swords, Users } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import "../styles/session.css";
@@ -165,21 +165,20 @@ export default function SessionPage() {
     }
   }
 
-  async function handleSessionAction(action) {
+  async function handleLeaveSession() {
     if (!supabase) return;
-    const label = action === "end" ? "encerrar" : "sair";
-    if (!window.confirm(`Deseja realmente ${label} desta sessão?`)) return;
-    setBusyAction(action);
+    if (!window.confirm("Sair desta mesa? O PIN continuará ativo e você poderá entrar novamente quando quiser.")) return;
+    setBusyAction("leave");
     setError("");
     try {
       const { data, error: actionError } = await supabase.functions.invoke("realm-sessions", {
-        body: { action, sessionId },
+        body: { action: "leave", sessionId },
       });
       if (actionError) throw actionError;
       if (data?.error) throw new Error(data.error);
       navigate("/campaigns", { replace: true });
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : `Não foi possível ${label} a sessão.`);
+      setError(actionError instanceof Error ? actionError.message : "Não foi possível sair da mesa.");
     } finally {
       setBusyAction("");
     }
@@ -196,14 +195,14 @@ export default function SessionPage() {
         <div className="session-heading-copy">
           <p className="eyebrow">MESA VIRTUAL · {session.status === "active" ? "AO VIVO" : "ENCERRADA"}</p>
           <h1>{session.campaignTitle}</h1>
-          <p className="page-lead">Sessão compartilhada do REALMS</p>
+          <p className="page-lead">Mesa permanente da campanha · PIN ativo até a exclusão</p>
         </div>
         <span className={session.status === "active" ? "session-status-pill active" : "session-status-pill"}>{session.status === "active" ? "Em andamento" : "Encerrada"}</span>
       </header>
 
       {session.pin && session.status === "active" && (
         <div className="session-pin-panel panel">
-          <div><span className="eyebrow">PIN PARA CONVIDAR PARTICIPANTES</span><strong>{session.pin}</strong><p>Compartilhe este código para que o grupo entre nesta sessão.</p></div>
+          <div><span className="eyebrow">PIN PARA CONVIDAR PARTICIPANTES</span><strong>{session.pin}</strong><p>Este PIN permanece válido enquanto a campanha existir.</p></div>
           <button className="button button-secondary" type="button" onClick={handleCopyPin}>{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? "Copiado" : "Copiar PIN"}</button>
         </div>
       )}
@@ -238,8 +237,8 @@ export default function SessionPage() {
           <section className="session-controls panel">
             <span className="eyebrow">CONTROLES DA SESSÃO</span>
             <p>{isGm ? "Você está conduzindo esta sessão." : isObserver ? "Você está assistindo à aventura." : "Você está participando desta aventura."}</p>
-            {isGm && session.status === "active" && <button className="session-end-button" type="button" onClick={() => handleSessionAction("end")} disabled={Boolean(busyAction)}><Shield size={15} />{busyAction === "end" ? "Encerrando..." : "Encerrar sessão"}</button>}
-            {session.status === "active" && <button className="session-leave-button" type="button" onClick={() => handleSessionAction("leave")} disabled={Boolean(busyAction)}><LogOut size={15} />{busyAction === "leave" ? "Saindo..." : "Sair da sessão"}</button>}
+            
+            {session.status === "active" && <button className="session-leave-button" type="button" onClick={handleLeaveSession}} disabled={Boolean(busyAction)}><LogOut size={15} />{busyAction === "leave" ? "Saindo..." : "Sair da sessão"}</button>}
             {session.status === "ended" && <Link className="button button-secondary session-back-button" to="/campaigns">Voltar às campanhas</Link>}
           </section>
         </aside>
