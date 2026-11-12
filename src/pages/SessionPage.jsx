@@ -122,7 +122,7 @@ export default function SessionPage() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [sessionId, user?.id, profile?.display_name, membership?.role]);
+  }, [sessionId, user?.id, profile?.display_name, profile?.preferred_role, membership?.role]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
