@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
     async function loadProfile(userId) {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, preferred_role")
+        .select("id, username, display_name, avatar_url, preferred_role, preferences")
         .eq("id", userId)
         .maybeSingle();
 
@@ -74,7 +74,7 @@ export function AuthProvider({ children }) {
       if (!supabase || !session?.user?.id) return;
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, preferred_role")
+        .select("id, username, display_name, avatar_url, preferred_role, preferences")
         .eq("id", session.user.id)
         .maybeSingle();
       if (error) throw error;
