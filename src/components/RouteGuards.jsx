@@ -15,9 +15,13 @@ export function RequireAuth() {
 
 export function RequireRole() {
   const { loading, user, profile } = useAuth();
+  const location = useLocation();
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/auth" replace />;
   if (!profile?.preferred_role) return <Navigate to="/choose-role" replace />;
+  if (profile.preferred_role === "observer" && ["/characters", "/dice", "/library", "/friends"].includes(location.pathname)) {
+    return <Navigate to="/" replace />;
+  }
   return <Outlet />;
 }
 
