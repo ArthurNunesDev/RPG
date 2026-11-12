@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { ChevronLeft, Compass, Dice5, LayoutDashboard, Library, LogOut, Menu, Settings, Sparkles, Swords, Users, UserRound, X, Crown, Eye } from "lucide-react";
 import { isSupabaseConfigured } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import "../styles/account.css";
 
 const pageNames = { "/": "Visão geral", "/campaigns": "Campanhas", "/characters": "Personagens", "/tabletop": "Mesa virtual", "/dice": "Rolagem de dados", "/library": "Biblioteca", "/friends": "Amigos", "/settings": "Configurações", "/account": "Minha conta" };
 const roleLabels = { gm: "Mestre", player: "Jogador", observer: "Observador" };
