@@ -364,7 +364,7 @@ export default function CampaignsPage() {
                     <span><CalendarDays size={13} />{formatDate(campaign.updated_at)}</span>
                   </div>
                   <div className="campaign-card-actions">
-                    <Link className="button button-primary" to={`/campaigns/${campaign.id}`}>Abrir campanha <ArrowUpRight size={14} /></Link>{role === "gm" && <button className="button button-secondary" type="button" onClick={() => handleOpenSession(campaign)} disabled={Boolean(sessionActionId)}><Play size={14} />{sessionActionId === campaign.id ? "Preparando..." : "Criar sessão"}</button>}
+                    <Link className="button button-primary" to={`/campaigns/${campaign.id}`}>Abrir campanha <ArrowUpRight size={14} /></Link>
                     {ownCampaign && <button className="button button-secondary" type="button" onClick={() => openEditForm(campaign)}><Pencil size={14} /> Editar</button>}
                     {ownCampaign && <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>}
                   </div>
