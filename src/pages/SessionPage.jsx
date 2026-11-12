@@ -371,7 +371,7 @@ export default function SessionPage() {
 
   async function handleDeleteMap(item) {
     if (!supabase || !isGm) return;
-    if (!window.confirm("Excluir o mapa "" + item.title + "" da campanha?")) return;
+    if (!window.confirm('Excluir o mapa "' + item.title + '" da campanha?')) return;
     const { error: deleteError } = await supabase.from("campaign_maps")
       .delete().eq("id", item.id).eq("campaign_id", campaignId);
     if (deleteError) {
