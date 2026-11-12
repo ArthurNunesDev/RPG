@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Check, Copy, Crown, Eye, LogOut, MessageCircle, Send, Shield, Swords, Users } from "lucide-react";
+import { ArrowLeft, Check, Copy, Eye, LogOut, MessageCircle, Send, Shield, Swords, Users } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import "../styles/session.css";
