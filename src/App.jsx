@@ -11,6 +11,8 @@ import CampaignsPage from "./pages/CampaignsPage.jsx";
 import CharactersPage from "./pages/CharactersPage.jsx";
 import TabletopPage from "./pages/TabletopPage.jsx";
 import SessionPage from "./pages/SessionPage.jsx";
+import AccountPage from "./pages/AccountPage.jsx";
+import SettingsPage from "./pages/SettingsPage.jsx";
 import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 
 export default function App() {
@@ -33,7 +35,8 @@ export default function App() {
                 <Route path="dice" element={<DicePage />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="friends" element={<PlaceholderPage eyebrow="Sua comunidade" title="Amigos" description="Encontre seus companheiros de aventura e organize grupos de jogo." icon="friends" />} />
-                <Route path="settings" element={<PlaceholderPage eyebrow="Preferências" title="Configurações" description="Personalize sua experiência no REALMS." icon="settings" />} />
+                <Route path="account" element={<AccountPage />} />
+                <Route path="settings" element={<SettingsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Route>
