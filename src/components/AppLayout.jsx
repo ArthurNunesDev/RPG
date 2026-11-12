@@ -18,7 +18,7 @@ export default function AppLayout() {
   const { user, profile, signOut } = useAuth();
   const role = profile?.preferred_role ?? "player";
   const RoleIcon = roleIcons[role] ?? UserRound;
-  const pageName = pageNames[location.pathname] ?? "REALMS";
+  const pageName = location.pathname.startsWith("/campaigns/") ? "Campanha" : location.pathname.startsWith("/tabletop/") ? "Sessão" : pageNames[location.pathname] ?? "REALMS";
   const navigation = [
     { label: "Jogo", items: [
       { to: "/", label: "Visão geral", icon: LayoutDashboard, end: true },
