@@ -219,8 +219,13 @@ export default function CharactersPage() {
   }
 
   async function handleDelete(character) {
-    const canManage = character.owner_id === user?.id
-      || (character.character_type === "npc" && campaigns.some((campaign) => campaign.id === character.campaign_id && campaign.role === "gm"));
+    const campaignRole = campaigns.find((campaign) => campaign.id === character.campaign_id)?.role;
+    const ownsEditableCharacter = character.owner_id === user?.id && (
+      !character.campaign_id
+      || (character.character_type === "player" && ["gm", "player"].includes(campaignRole))
+      || (character.character_type === "npc" && campaignRole === "gm")
+    );
+    const canManage = ownsEditableCharacter || campaignRole === "gm";
     if (!supabase || !canManage) return;
     if (!window.confirm(`Excluir "${character.name}"? Essa ação não poderá ser desfeita.`)) return;
 
@@ -315,7 +320,13 @@ export default function CharactersPage() {
       {loading ? <div className="characters-empty panel"><span>✦</span><p>Carregando personagens...</p></div>
         : visibleCharacters.length ? <div className="character-grid">{visibleCharacters.map((character) => {
           const isNpc = character.character_type === "npc";
-          const canEdit = character.owner_id === user?.id || (isNpc && campaigns.some((campaign) => campaign.id === character.campaign_id && campaign.role === "gm"));
+          const campaignRole = campaigns.find((campaign) => campaign.id === character.campaign_id)?.role;
+          const ownsEditableCharacter = character.owner_id === user?.id && (
+            !character.campaign_id
+            || (character.character_type === "player" && ["gm", "player"].includes(campaignRole))
+            || (isNpc && campaignRole === "gm")
+          );
+          const canEdit = ownsEditableCharacter || campaignRole === "gm";
           return <article className="character-card panel" key={character.id}>
             <div className={isNpc ? "character-card-art npc" : "character-card-art"}><div className="character-card-symbol">{isNpc ? character.npc_role === "enemy" ? <Skull size={25} /> : character.npc_role === "ally" ? <Shield size={25} /> : <Eye size={25} /> : <UserRound size={25} />}</div><span className={isNpc ? "character-kind npc" : "character-kind"}>{isNpc ? `NPC · ${npcRoleLabels[character.npc_role]}` : "Personagem"}</span></div>
             <div className="character-card-body"><div className="character-card-meta"><span>{character.game_systems?.name ?? "Sistema"}</span><span>{statusLabels[character.status] ?? character.status}</span></div><h2>{character.name}</h2><p>{character.concept || "Nenhuma descrição cadastrada."}</p><div className="character-card-campaign"><BookOpen size={13} />{character.campaigns?.title ?? "Sem campanha"}</div>
