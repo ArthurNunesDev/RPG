@@ -15,7 +15,25 @@ function rollDie(sides) {
   return (value % sides) + 1;
 }
 
-function playRollSound() {\n  const AudioContextClass = window.AudioContext || window.webkitAudioContext;\n  if (!AudioContextClass) return;\n  const context = new AudioContextClass();\n  const oscillator = context.createOscillator();\n  const gain = context.createGain();\n  const now = context.currentTime;\n  oscillator.type = "triangle";\n  oscillator.frequency.setValueAtTime(320, now);\n  oscillator.frequency.exponentialRampToValueAtTime(720, now + 0.12);\n  gain.gain.setValueAtTime(0.0001, now);\n  gain.gain.exponentialRampToValueAtTime(0.055, now + 0.025);\n  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);\n  oscillator.connect(gain); gain.connect(context.destination);\n  oscillator.start(now); oscillator.stop(now + 0.21);\n  oscillator.onended = () => context.close();\n}\n\nfunction formatDate(value) {
+function playRollSound() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  const context = new AudioContextClass();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const now = context.currentTime;
+  oscillator.type = "triangle";
+  oscillator.frequency.setValueAtTime(320, now);
+  oscillator.frequency.exponentialRampToValueAtTime(720, now + 0.12);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.055, now + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+  oscillator.connect(gain); gain.connect(context.destination);
+  oscillator.start(now); oscillator.stop(now + 0.21);
+  oscillator.onended = () => context.close();
+}
+
+function formatDate(value) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
@@ -92,7 +110,8 @@ export default function DicePage() {
     }
     setRolling(true); setError("");
     try {
-      const rolls = Array.from({ length: quantity }, () => ({ sides, value: rollDie(sides) }));\n      if (profile?.preferences?.soundEffects) { try { playRollSound(); } catch { /* Audio is optional. */ } }
+      const rolls = Array.from({ length: quantity }, () => ({ sides, value: rollDie(sides) }));
+      if (profile?.preferences?.soundEffects) { try { playRollSound(); } catch { /* Audio is optional. */ } }
       const sum = rolls.reduce((total, die) => total + die.value, 0);
       const total = sum + Number(modifier || 0);
       const formula = `${quantity}d${sides}${modifier >= 0 ? "+" : ""}${modifier || 0}`;
