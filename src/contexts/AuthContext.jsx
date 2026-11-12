@@ -63,6 +63,11 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    document.documentElement.dataset.density = profile?.preferences?.compactMode ? "compact" : "comfortable";
+    document.documentElement.dataset.motion = profile?.preferences?.animations === false ? "reduced" : "full";
+  }, [profile?.preferences]);
+
   const value = useMemo(() => ({
     configured: isSupabaseConfigured,
     session,
