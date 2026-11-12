@@ -8,8 +8,6 @@ import {
   LayoutDashboard,
   Library,
   Menu,
-  MessageCircle,
-  Moon,
   Settings,
   Shield,
   Sparkles,
