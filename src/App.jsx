@@ -31,13 +31,13 @@ export default function App() {
                 <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
                 <Route path="characters" element={<CharactersPage />} />
                 <Route path="tabletop" element={<Navigate to="/campaigns" replace />} />
-                <Route path="tabletop/:sessionId" element={<SessionPage />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="friends" element={<FriendsPage />} />
                 <Route path="account" element={<AccountPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
+              <Route path="tabletop/:sessionId" element={<SessionPage />} />
             </Route>
           </Route>
         </Routes>
