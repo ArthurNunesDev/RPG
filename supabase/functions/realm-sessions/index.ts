@@ -32,11 +32,20 @@ function errorMessage(error: unknown): string {
 }
 
 function generatePin(): string {
+  const acceptedByteLimit = Math.floor(256 / PIN_ALPHABET.length) * PIN_ALPHABET.length;
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const bytes = new Uint8Array(8);
+    const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
-    const pin = Array.from(bytes, (byte) => PIN_ALPHABET[byte % PIN_ALPHABET.length]).join("");
-    if (/[A-Z]/.test(pin) && /[0-9]/.test(pin)) return pin;
+    const characters: string[] = [];
+    for (const byte of bytes) {
+      if (byte >= acceptedByteLimit) continue;
+      characters.push(PIN_ALPHABET[byte % PIN_ALPHABET.length]);
+      if (characters.length === 8) break;
+    }
+    if (characters.length === 8) {
+      const pin = characters.join("");
+      if (/[A-Z]/.test(pin) && /[0-9]/.test(pin)) return pin;
+    }
   }
   throw new Error("PIN_GENERATION_FAILED");
 }
@@ -216,7 +225,13 @@ Deno.serve(async (request: Request) => {
       p_user_id: userId,
       p_session_id: sessionId,
     });
-    if (error) return respond({ error: "Não foi possível sair da sessão." }, 500);
+    if (error) {
+      const message = errorMessage(error);
+      if (message.includes("SESSION_CREATOR_MUST_END")) {
+        return respond({ error: "Como mestre que abriu a sessão, encerre-a antes de sair." }, 409);
+      }
+      return respond({ error: "Não foi possível sair da sessão." }, 500);
+    }
     if (data !== true) return respond({ error: "Você não participa desta sessão." }, 404);
     return respond({ left: true });
   }
