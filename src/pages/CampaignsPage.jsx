@@ -42,7 +42,7 @@ function formatDate(value) {
 }
 
 export default function CampaignsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [systems, setSystems] = useState([]);
@@ -57,6 +57,7 @@ export default function CampaignsPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const canCreateCampaign = profile?.preferred_role === "gm";
 
   const loadCampaigns = useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -117,6 +118,7 @@ export default function CampaignsPage() {
   }, [campaigns, filter, query, user?.id]);
 
   function openCreateForm() {
+    if (!canCreateCampaign) return;
     setEditingId("");
     setForm({ ...emptyForm, gameSystemId: systems[0]?.id ?? "" });
     setError("");
@@ -147,6 +149,10 @@ export default function CampaignsPage() {
   async function handleSave(event) {
     event.preventDefault();
     if (!supabase || !user?.id) return;
+    if (!editingId && !canCreateCampaign) {
+      setError("Somente usuários no modo mestre podem criar campanhas.");
+      return;
+    }
 
     const title = form.title.trim();
     const description = form.description.trim();
@@ -192,7 +198,7 @@ export default function CampaignsPage() {
       setFormOpen(false);
       setEditingId("");
       setForm(emptyForm);
-      setNotice(editingId ? "Campanha atualizada." : "Campanha criada. Você já está registrado como mestre.");
+      setNotice(editingId ? "Campanha atualizada." : "Campanha criada. O PIN permanente foi gerado; abra a mesa para copiá-lo.");
       await loadCampaigns();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar a campanha.");
@@ -202,43 +208,22 @@ export default function CampaignsPage() {
   }
 
   async function handleOpenSession(campaign) {
-    if (!supabase || sessionActionId) return;
+    if (!supabase || sessionActionId || campaign.owner_id !== user?.id) return;
     setSessionActionId(campaign.id);
     setError("");
     setNotice("");
     try {
-      const { data: activeData, error: activeError } = await supabase.functions.invoke("realm-sessions", {
+      const { data, error: activeError } = await supabase.functions.invoke("realm-sessions", {
         body: { action: "active", campaignId: campaign.id },
       });
       if (activeError) throw activeError;
-      if (activeData?.error) throw new Error(activeData.error);
-
-      let session = activeData?.session ?? null;
-      if (!session) {
-        const { data: createData, error: createError } = await supabase.functions.invoke("realm-sessions", {
-          body: { action: "create", campaignId: campaign.id },
-        });
-        if (createError) throw createError;
-        if (createData?.error) {
-          if (createData.error.includes("já possui uma sessão ativa")) {
-            const { data: retryData, error: retryError } = await supabase.functions.invoke("realm-sessions", {
-              body: { action: "active", campaignId: campaign.id },
-            });
-            if (retryError) throw retryError;
-            if (retryData?.error) throw new Error(retryData.error);
-            session = retryData?.session ?? null;
-          } else {
-            throw new Error(createData.error);
-          }
-        } else {
-          session = createData?.session ?? null;
-        }
+      if (data?.error) throw new Error(data.error);
+      if (!data?.session?.id) {
+        throw new Error("O PIN permanente desta campanha não foi encontrado. Atualize a página e tente novamente.");
       }
-
-      if (!session?.id) throw new Error("Não foi possível abrir a sessão desta campanha.");
-      navigate(`/tabletop/${session.id}`);
+      navigate(`/tabletop/${data.session.id}`);
     } catch (sessionError) {
-      setError(sessionError instanceof Error ? sessionError.message : "Não foi possível abrir a sessão.");
+      setError(sessionError instanceof Error ? sessionError.message : "Não foi possível abrir a mesa.");
     } finally {
       setSessionActionId("");
     }
@@ -285,11 +270,11 @@ export default function CampaignsPage() {
         <div>
           <p className="eyebrow">SUAS AVENTURAS</p>
           <h1>Campanhas</h1>
-          <p className="page-lead">Crie uma aventura ou acompanhe as campanhas das quais você participa.</p>
+          <p className="page-lead">{canCreateCampaign ? "Crie uma aventura ou acompanhe as campanhas das quais você participa." : "Acompanhe suas campanhas e entre em novas aventuras com o PIN compartilhado pelo mestre."}</p>
         </div>
-        <button className="button button-primary campaigns-create-button" type="button" onClick={openCreateForm} disabled={!systems.length}>
+        {canCreateCampaign && <button className="button button-primary campaigns-create-button" type="button" onClick={openCreateForm} disabled={!systems.length}>
           <Plus size={17} /> Nova campanha
-        </button>
+        </button>}
       </div>
 
       <div className="campaigns-stats">
@@ -301,7 +286,7 @@ export default function CampaignsPage() {
       {notice && <p className="campaigns-notice" role="status"><CheckCircle2 size={15} />{notice}</p>}
       {error && !formOpen && <p className="campaigns-error" role="alert">{error}</p>}
 
-      {!systems.length && !loading && (
+      {canCreateCampaign && !systems.length && !loading && (
         <div className="campaigns-no-systems panel">
           <BookOpen size={22} />
           <div><h2>Escolha um sistema primeiro</h2><p>Para criar uma campanha, você precisa ter um sistema oficial ou personalizado disponível.</p></div>
@@ -395,8 +380,8 @@ export default function CampaignsPage() {
         <div className="campaigns-empty panel">
           <div className="campaigns-empty-icon"><Swords size={25} /></div>
           <h2>{query ? "Nenhuma campanha encontrada" : filter === "hosting" ? "Você ainda não mestra campanhas" : filter === "participating" ? "Você ainda não participa de campanhas" : "Sua primeira aventura começa aqui"}</h2>
-          <p>{query ? "Tente buscar por outro nome ou sistema." : "Crie uma campanha para reunir seu grupo e começar uma nova história."}</p>
-          {!query && filter !== "participating" && <button className="button button-primary" type="button" onClick={openCreateForm} disabled={!systems.length}><Plus size={16} /> Criar campanha</button>}
+          <p>{query ? "Tente buscar por outro nome ou sistema." : canCreateCampaign ? "Crie uma campanha para reunir seu grupo e começar uma nova história." : "Quando um mestre compartilhar um PIN com você, entre pela página Mesa virtual para participar."}</p>
+          {!query && filter !== "participating" && canCreateCampaign && <button className="button button-primary" type="button" onClick={openCreateForm} disabled={!systems.length}><Plus size={16} /> Criar campanha</button>}
         </div>
       )}
     </section>
