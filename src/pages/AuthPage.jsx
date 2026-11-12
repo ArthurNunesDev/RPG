@@ -64,7 +64,7 @@ export default function AuthPage() {
         else setNotice("Conta criada. Verifique seu e-mail para confirmar o cadastro e depois entre.");
       } else if (mode === "reset") {
         const { error: authError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin + "/auth",
+          redirectTo: window.location.origin + import.meta.env.BASE_URL + "auth",
         });
         if (authError) throw authError;
         setNotice("Se o endereço estiver cadastrado, você receberá um e-mail com as instruções de recuperação.");
