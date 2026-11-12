@@ -2,20 +2,26 @@
 
 Plataforma multiplayer para criar campanhas e jogar diferentes sistemas de RPG com amigos.
 
+<https://arthurnunesdev.github.io/RPG/>
+
+## Publicação
+
+O REALMS é publicado pelo **GitHub Pages**, usando GitHub Actions. Cada push na branch `main` executa o build do Vite e publica o conteúdo de `dist/`.
+
+- **Site:** https://arthurnunesdev.github.io/RPG/
+- **Repositório:** https://github.com/ArthurNunesDev/RPG
+- **Hospedagem:** GitHub Pages
+- **Deploy:** GitHub Actions (workflow em `.github/workflows/deploy-pages.yml`)
+
+O workflow gera também um `404.html` a partir do build para manter as rotas do React Router acessíveis ao atualizar ou abrir links diretamente.
+
 ## Stack
 
-- React 19 + Vite
+- React 19 + Vite 8
 - JavaScript (ES modules)
 - Supabase: PostgreSQL, Auth, Realtime e Storage
 - React Router
 - Lucide React
-
-## Requisitos
-
-- Node.js compatível com Vite 8
-- Node.js 20.19+ (ou 22.12+)
-- npm
-- Projeto Supabase exclusivo para o REALMS
 
 ## Executar localmente
 
@@ -44,26 +50,31 @@ Plataforma multiplayer para criar campanhas e jogar diferentes sistemas de RPG c
    npm run build
    ```
 
-## Supabase
+## Configuração do Supabase
 
 Projeto dedicado: `REALMS`  
 Região: `sa-east-1`  
 Project ref: `ktklhzngmtmgexzpofms`  
 URL: https://ktklhzngmtmgexzpofms.supabase.co
 
+No painel do Supabase, em **Authentication → URL Configuration**, configure:
+
+- **Site URL:** `https://arthurnunesdev.github.io/RPG/`
+- **Redirect URLs:** `https://arthurnunesdev.github.io/RPG/**`
+
 As migrations iniciais e de papéis foram aplicadas e verificadas no projeto dedicado. As seis tabelas principais estão com RLS habilitado, e as três tabelas de colaboração estão publicadas no Realtime.
 
-O schema inicial cria:
+O schema inclui:
 
 - Perfis vinculados ao Supabase Auth, com preferência de experiência (mestre, jogador ou observador).
 - Sistemas de RPG com schema de ficha e regras em JSONB.
 - Campanhas e participantes com papéis de mestre, jogador ou observador.
 - Personagens com fichas flexíveis.
 - Mensagens de campanha.
-- Políticas RLS e publicação Realtime para os dados compartilhados.
+- Políticas RLS e publicação Realtime para dados compartilhados.
 
 A chave publishable pode ser usada no frontend. Nunca coloque `service_role`, senhas ou segredos em variáveis `VITE_*`.
 
 ## Estado do projeto
 
-O repositório contém a fundação visual e técnica inicial. Autenticação de interface, CRUD de campanhas/personagens, convites, mesa virtual e ferramentas do mestre serão implementados em etapas próprias.
+Autenticação, recuperação de senha e seleção de experiência estão implementadas. CRUD de campanhas/personagens, convites, mesa virtual em tempo real e ferramentas operacionais do mestre ainda serão desenvolvidos em etapas próprias.
