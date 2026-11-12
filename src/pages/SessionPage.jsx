@@ -30,6 +30,9 @@ function SessionMapCard({ item, isGm, onVisibility, onDelete }) {
         if (!active) return;
         if (error) setImageError("Não foi possível carregar este mapa.");
         else setUrl(data?.signedUrl ?? "");
+      })
+      .catch(() => {
+        if (active) setImageError("Não foi possível carregar este mapa.");
       });
     return () => { active = false; };
   }, [item.storage_path]);
@@ -127,14 +130,16 @@ export default function SessionPage() {
   const visibleMaps = maps.filter((item) => isGm || item.is_visible);
   const editableCharacters = characters.filter((item) => isGm || (item.owner_id === user?.id && !isObserver));
 
-  const loadSession = useCallback(async () => {
+  const loadSession = useCallback(async (silent = false) => {
     if (!supabase || !user?.id || !sessionId) {
-      setLoading(false);
+      if (!silent) setLoading(false);
       setError("Não foi possível carregar esta sessão.");
       return;
     }
-    setLoading(true);
-    setError("");
+    if (!silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const [{ data: sessionData, error: sessionError }, { data: messageData, error: messageError }] = await Promise.all([
         supabase.functions.invoke("realm-sessions", { body: { action: "info", sessionId } }),
@@ -174,17 +179,17 @@ export default function SessionPage() {
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Não foi possível carregar a sessão.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [sessionId, user?.id]);
 
-  useEffect(() => { loadSession(); }, [loadSession]);
+  useEffect(() => { loadSession(false); }, [loadSession]);
 
   useEffect(() => {
     if (!supabase || !campaignId) return undefined;
     const channel = supabase.channel("room-resources:" + campaignId)
-      .on("postgres_changes", { event: "*", schema: "public", table: "campaign_maps", filter: "campaign_id=eq." + campaignId }, loadSession)
-      .on("postgres_changes", { event: "*", schema: "public", table: "characters", filter: "campaign_id=eq." + campaignId }, loadSession)
+      .on("postgres_changes", { event: "*", schema: "public", table: "campaign_maps", filter: "campaign_id=eq." + campaignId }, () => loadSession(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "characters", filter: "campaign_id=eq." + campaignId }, () => loadSession(true))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [campaignId, loadSession]);
@@ -298,6 +303,7 @@ export default function SessionPage() {
 
   async function handleUploadMap(event) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     if (!supabase || !campaignId || !user?.id || !isGm || uploadingMap) return;
     const title = mapTitle.trim();
     if (!title || title.length > 100 || !mapFile) {
@@ -331,9 +337,9 @@ export default function SessionPage() {
       setMapTitle("");
       setMapDescription("");
       setMapFile(null);
-      event.currentTarget.reset();
+      formElement.reset();
       setNotice("Mapa adicionado à sala da sessão.");
-      await loadSession();
+      await loadSession(true);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível adicionar o mapa.");
     } finally {
@@ -346,7 +352,7 @@ export default function SessionPage() {
     const { error: updateError } = await supabase.from("campaign_maps")
       .update({ is_visible: !item.is_visible }).eq("id", item.id).eq("campaign_id", campaignId);
     if (updateError) setError(updateError.message);
-    else await loadSession();
+    else await loadSession(true);
   }
 
   async function handleDeleteMap(item) {
@@ -361,7 +367,7 @@ export default function SessionPage() {
     const { error: storageError } = await supabase.storage.from("campaign-assets").remove([item.storage_path]);
     if (storageError) setError("O mapa foi removido, mas o arquivo não pôde ser excluído: " + storageError.message);
     else setNotice("Mapa removido.");
-    await loadSession();
+    await loadSession(true);
   }
 
   function openCharacterEditor(character) {
@@ -397,7 +403,7 @@ export default function SessionPage() {
       if (updateError) throw updateError;
       setEditingCharacter(null);
       setNotice("Ficha de personagem atualizada.");
-      await loadSession();
+      await loadSession(true);
     } catch (saveError) {
       setCharacterError(saveError instanceof Error ? saveError.message : "Não foi possível salvar a ficha.");
     } finally {
