@@ -37,15 +37,16 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
-export default function DicePage() {
+export default function DicePage({ campaignId: campaignIdProp = "", embedded = false, readOnly = false }) {
   const { user, profile } = useAuth();
   const [sides, setSides] = useState(profile?.preferences?.defaultDie ?? 20);
   const [quantity, setQuantity] = useState(1);
   const [modifier, setModifier] = useState(0);
   const [mode, setMode] = useState("normal");
   const [campaigns, setCampaigns] = useState([]);
-  const [campaignId, setCampaignId] = useState("");
-  const [scope, setScope] = useState("personal");
+  const [selectedCampaignId, setSelectedCampaignId] = useState(campaignIdProp);
+  const campaignId = campaignIdProp || selectedCampaignId;
+  const [scope, setScope] = useState(campaignIdProp ? "campaign" : "personal");
   const [history, setHistory] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +58,7 @@ export default function DicePage() {
   }, [profile?.preferences?.defaultDie]);
 
   useEffect(() => {
+    if (campaignIdProp) { setSelectedCampaignId(campaignIdProp); setScope("campaign"); setLoading(false); return undefined; }
     let active = true;
     async function loadCampaigns() {
       if (!supabase || !user?.id) { setLoading(false); return; }
@@ -68,12 +70,12 @@ export default function DicePage() {
       if (campaignError) { setError(campaignError.message); setLoading(false); return; }
       const available = (data ?? []).filter((item) => item.campaigns?.id);
       setCampaigns(available);
-      if (available.length) setCampaignId((current) => current || available[0].campaign_id);
+      if (available.length) setSelectedCampaignId((current) => current || available[0].campaign_id);
       setLoading(false);
     }
     loadCampaigns();
     return () => { active = false; };
-  }, [user?.id]);
+  }, [user?.id, campaignIdProp]);
 
 
   const loadHistory = useCallback(async () => {
@@ -100,7 +102,7 @@ export default function DicePage() {
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   function handleRoll() {
-    if (!supabase || !user?.id || rolling) return;
+    if (!supabase || !user?.id || rolling || readOnly) return;
     if (scope === "campaign" && !campaignId) {
       setError("Selecione uma campanha para compartilhar a rolagem.");
       return;
@@ -155,20 +157,19 @@ export default function DicePage() {
   const canUseCampaignHistory = Boolean(campaignId);
 
   return (
-    <section className="module-page dice-page dice-page-expanded">
-      <p className="eyebrow"><Sparkles size={14} /> A SORTE ESTÁ LANÇADA</p>
-      <h1>Rolagem de dados</h1>
-      <p className="page-lead">Monte sua rolagem, acompanhe cada resultado e consulte os registros da campanha.</p>
+    <section className={embedded ? "module-page dice-page dice-page-expanded dice-page-embedded" : "module-page dice-page dice-page-expanded"}>
+      {!embedded && <><p className="eyebrow"><Sparkles size={14} /> A SORTE ESTÁ LANÇADA</p><h1>Rolagem de dados</h1><p className="page-lead">Monte sua rolagem, acompanhe cada resultado e consulte os registros da campanha.</p></>}
 
-      <div className="dice-context panel">
-        <label><span>Campanha vinculada</span><select value={campaignId} onChange={(event) => setCampaignId(event.target.value)}><option value="">Rolagem sem campanha</option>{campaigns.map((item) => <option value={item.campaign_id} key={item.campaign_id}>{item.campaigns.title}</option>)}</select></label>
+      {!embedded && <div className="dice-context panel">
+        <label><span>Campanha vinculada</span><select value={campaignId} onChange={(event) => setSelectedCampaignId(event.target.value)}><option value="">Rolagem sem campanha</option>{campaigns.map((item) => <option value={item.campaign_id} key={item.campaign_id}>{item.campaigns.title}</option>)}</select></label>
         <div className="dice-scope-control" role="group" aria-label="Visibilidade do histórico">
           <button type="button" className={!isShared ? "dice-scope--active" : ""} onClick={() => setScope("personal")}><UserRound size={14} /> Pessoal</button>
           <button type="button" className={isShared ? "dice-scope--active" : ""} onClick={() => setScope("campaign")} disabled={!canShare}><Users size={14} /> Campanha</button>
         </div>
         <p>{isShared ? "Todos os membros desta campanha podem consultar as rolagens compartilhadas." : campaignId ? "Somente você e o mestre desta campanha podem consultar este histórico pessoal." : "Este histórico é privado e visível apenas para você."}</p>
-      </div>
+      </div>}
 
+      {embedded && <div className="dice-scope-control dice-embedded-scope" role="group" aria-label="Visibilidade do histórico"><button type="button" className={!isShared ? "dice-scope--active" : ""} onClick={() => setScope("personal")}><UserRound size={14}/> Pessoal</button><button type="button" className={isShared ? "dice-scope--active" : ""} onClick={() => setScope("campaign")}><Users size={14}/> Campanha</button></div>}
       <div className="dice-layout">
         <div className="dice-stage panel">
           <div className="dice-stage-top"><span className="stage-label">MESA DE ROLAGEM</span><Dices size={19} /></div>
@@ -185,8 +186,8 @@ export default function DicePage() {
           </div>
           <label className="dice-mode-field"><span>Modo de rolagem</span><select value={mode} onChange={(event) => setMode(event.target.value)} disabled={sides !== 20 || quantity !== 1}><option value="normal">Normal</option><option value="advantage">Vantagem · maior resultado</option><option value="disadvantage">Desvantagem · menor resultado</option></select></label>
           <div className="dice-formula-preview">{mode === "normal" ? quantity : 1}d{sides}{mode === "advantage" ? " (vantagem)" : mode === "disadvantage" ? " (desvantagem)" : ""}{modifier >= 0 ? "+" : ""}{modifier}</div>
-          <button className="button button-primary dice-roll-button" type="button" onClick={handleRoll} disabled={rolling || (isShared && !canUseCampaignHistory)}><Dice1 size={19} />{rolling ? "Rolando..." : "Rolar dados"}</button>
-          {error && <p className="form-error" role="alert">{error}</p>}
+          <button className="button button-primary dice-roll-button" type="button" onClick={handleRoll} disabled={readOnly || rolling || (isShared && !canUseCampaignHistory)}><Dice1 size={19} />{rolling ? "Rolando..." : "Rolar dados"}</button>
+          {readOnly && <p className="form-hint">Observadores podem consultar o histórico, mas não podem realizar rolagens.</p>}{error && <p className="form-error" role="alert">{error}</p>}
           {result && <div className="dice-result-breakdown"><span>Dados: {result.rolls.map((die) => `${die.value}${die.kept ? " ✓" : ""}`).join(" · ")}</span><strong>Total: {result.total}</strong></div>}
         </div>
 
