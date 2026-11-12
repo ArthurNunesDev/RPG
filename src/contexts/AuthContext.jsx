@@ -45,6 +45,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return;
       setSession(nextSession);
+      if (nextSession && (_event === "SIGNED_IN" || _event === "INITIAL_SESSION")) setLoading(true);
       if (!nextSession) {
         setProfile(null);
         setProfileError("");
