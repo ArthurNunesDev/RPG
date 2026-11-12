@@ -50,6 +50,8 @@ export default function CampaignsPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [sessionActionId, setSessionActionId] = useState("");
+  const [joinPin, setJoinPin] = useState("");
+  const [joining, setJoining] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
@@ -198,7 +200,7 @@ export default function CampaignsPage() {
       setFormOpen(false);
       setEditingId("");
       setForm(emptyForm);
-      setNotice(editingId ? "Campanha atualizada." : "Campanha criada. O PIN permanente foi gerado; abra a mesa para copiá-lo.");
+      setNotice(editingId ? "Campanha atualizada." : "Campanha criada. Crie uma sessão dentro dela para gerar o PIN.");
       await loadCampaigns();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar a campanha.");
@@ -209,24 +211,42 @@ export default function CampaignsPage() {
 
   async function handleOpenSession(campaign) {
     if (!supabase || sessionActionId || campaign.owner_id !== user?.id) return;
-    setSessionActionId(campaign.id);
-    setError("");
-    setNotice("");
+    setSessionActionId(campaign.id); setError(""); setNotice("");
     try {
-      const { data, error: activeError } = await supabase.functions.invoke("realm-sessions", {
-        body: { action: "active", campaignId: campaign.id },
+      let response = await supabase.functions.invoke("realm-sessions", {
+        body: { action: "create", campaignId: campaign.id },
       });
-      if (activeError) throw activeError;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.session?.id) {
-        throw new Error("O PIN permanente desta campanha não foi encontrado. Atualize a página e tente novamente.");
+      if (response.error || response.data?.error) {
+        const message = response.data?.error ?? response.error?.message ?? "";
+        if (!message.toLowerCase().includes("já possui") && !message.toLowerCase().includes("already")) throw new Error(message || "Não foi possível criar a sessão.");
+        response = await supabase.functions.invoke("realm-sessions", { body: { action: "campaign", campaignId: campaign.id } });
       }
-      navigate(`/tabletop/${data.session.id}`);
+      if (response.error) throw response.error;
+      if (response.data?.error) throw new Error(response.data.error);
+      if (!response.data?.session?.id) throw new Error("A sessão não foi retornada pelo servidor.");
+      navigate(`/campaigns/${campaign.id}`);
     } catch (sessionError) {
-      setError(sessionError instanceof Error ? sessionError.message : "Não foi possível abrir a mesa.");
-    } finally {
-      setSessionActionId("");
-    }
+      setError(sessionError instanceof Error ? sessionError.message : "Não foi possível criar a sessão.");
+    } finally { setSessionActionId(""); }
+  }
+
+  async function handleJoinWithPin(event) {
+    event.preventDefault();
+    if (!supabase || joining) return;
+    const normalizedPin = joinPin.replace(/[^a-z0-9]/gi, "").toUpperCase();
+    if (!/^[A-Z0-9]{8}$/.test(normalizedPin)) { setError("Informe o PIN de 8 caracteres."); return; }
+    setJoining(true); setError(""); setNotice("");
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("realm-sessions", { body: { action: "join", pin: normalizedPin } });
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.session?.campaignId) throw new Error("A campanha da sessão não foi retornada.");
+      setJoinPin("");
+      await loadCampaigns();
+      navigate(`/campaigns/${data.session.campaignId}`);
+    } catch (joinError) {
+      setError(joinError instanceof Error ? joinError.message : "Não foi possível entrar com esse PIN.");
+    } finally { setJoining(false); }
   }
 
   async function handleDelete(campaign) {
@@ -277,7 +297,7 @@ export default function CampaignsPage() {
         </button>}
       </div>
 
-      <div className="campaigns-stats">
+      <form className="campaign-pin-entry panel" onSubmit={handleJoinWithPin}><div><p className="eyebrow">ENTRAR EM UMA AVENTURA</p><strong>Já tem um PIN?</strong><span>Informe o código compartilhado pelo mestre.</span></div><input aria-label="PIN da sessão" autoComplete="off" maxLength={8} placeholder="EX: A7K9P2Q4" value={joinPin} onChange={(event) => setJoinPin(event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase())} /><button className="button button-primary" type="submit" disabled={joining || joinPin.length !== 8}>{joining ? "Conectando..." : "Entrar na campanha"}</button></form>\n\n      <div className="campaigns-stats">
         <div className="campaign-stat panel"><span className="campaign-stat-icon"><BookOpen size={17} /></span><div><strong>{campaigns.length}</strong><span>Campanhas</span></div></div>
         <div className="campaign-stat panel"><span className="campaign-stat-icon campaign-stat-icon--gold"><Crown size={17} /></span><div><strong>{hostedCount}</strong><span>Como mestre</span></div></div>
         <div className="campaign-stat panel"><span className="campaign-stat-icon campaign-stat-icon--blue"><Users size={17} /></span><div><strong>{participatingCount}</strong><span>Participando</span></div></div>
@@ -366,7 +386,7 @@ export default function CampaignsPage() {
                     <span><CalendarDays size={13} />{formatDate(campaign.updated_at)}</span>
                   </div>
                   {(ownCampaign || role === "gm") && <div className="campaign-card-actions">
-                    {role === "gm" && <button className="button button-secondary" type="button" onClick={() => handleOpenSession(campaign)} disabled={Boolean(sessionActionId)}><Play size={14} />{sessionActionId === campaign.id ? "Abrindo..." : "Abrir sessão"}</button>}
+                    <Link className="button button-primary" to={`/campaigns/${campaign.id}`}>Abrir campanha <ArrowUpRight size={14} /></Link>{role === "gm" && <button className="button button-secondary" type="button" onClick={() => handleOpenSession(campaign)} disabled={Boolean(sessionActionId)}><Play size={14} />{sessionActionId === campaign.id ? "Preparando..." : "Criar sessão"}</button>}
                     {ownCampaign && <button className="button button-secondary" type="button" onClick={() => openEditForm(campaign)}><Pencil size={14} /> Editar</button>}
                     {ownCampaign && <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id || Boolean(sessionActionId)} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>}
                   </div>}
@@ -380,7 +400,7 @@ export default function CampaignsPage() {
         <div className="campaigns-empty panel">
           <div className="campaigns-empty-icon"><Swords size={25} /></div>
           <h2>{query ? "Nenhuma campanha encontrada" : filter === "hosting" ? "Você ainda não mestra campanhas" : filter === "participating" ? "Você ainda não participa de campanhas" : "Sua primeira aventura começa aqui"}</h2>
-          <p>{query ? "Tente buscar por outro nome ou sistema." : canCreateCampaign ? "Crie uma campanha para reunir seu grupo e começar uma nova história." : "Quando um mestre compartilhar um PIN com você, entre pela página Mesa virtual para participar."}</p>
+          <p>{query ? "Tente buscar por outro nome ou sistema." : canCreateCampaign ? "Crie uma campanha para reunir seu grupo e começar uma nova história." : "Quando um mestre compartilhar um PIN, use o campo acima para entrar na campanha."}</p>
           {!query && filter !== "participating" && canCreateCampaign && <button className="button button-primary" type="button" onClick={openCreateForm} disabled={!systems.length}><Plus size={16} /> Criar campanha</button>}
         </div>
       )}
