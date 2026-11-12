@@ -51,13 +51,13 @@ Região: `sa-east-1`
 Project ref: `ktklhzngmtmgexzpofms`  
 URL: https://ktklhzngmtmgexzpofms.supabase.co
 
-A migration inicial já foi aplicada e verificada no projeto dedicado. As seis tabelas principais estão criadas com RLS habilitado, e as três tabelas de colaboração estão publicadas no Realtime.
+As migrations iniciais e de papéis foram aplicadas e verificadas no projeto dedicado. As seis tabelas principais estão com RLS habilitado, e as três tabelas de colaboração estão publicadas no Realtime.
 
 O schema inicial cria:
 
-- Perfis vinculados ao Supabase Auth.
+- Perfis vinculados ao Supabase Auth, com preferência de experiência (mestre, jogador ou observador).
 - Sistemas de RPG com schema de ficha e regras em JSONB.
-- Campanhas e participantes com papéis de mestre/jogador.
+- Campanhas e participantes com papéis de mestre, jogador ou observador.
 - Personagens com fichas flexíveis.
 - Mensagens de campanha.
 - Políticas RLS e publicação Realtime para os dados compartilhados.
