@@ -46,7 +46,12 @@ Plataforma multiplayer para criar campanhas e jogar diferentes sistemas de RPG c
 
 ## Supabase
 
-A primeira migration está em `supabase/migrations`. Aplique-a somente no projeto Supabase dedicado ao REALMS.
+Projeto dedicado: `REALMS`  
+Região: `sa-east-1`  
+Project ref: `ktklhzngmtmgexzpofms`  
+URL: https://ktklhzngmtmgexzpofms.supabase.co
+
+A migration inicial já foi aplicada e verificada no projeto dedicado. As seis tabelas principais estão criadas com RLS habilitado, e as três tabelas de colaboração estão publicadas no Realtime.
 
 O schema inicial cria:
 
