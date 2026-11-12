@@ -9,6 +9,8 @@ import DicePage from "./pages/DicePage.jsx";
 import LibraryPage from "./pages/LibraryPage.jsx";
 import CampaignsPage from "./pages/CampaignsPage.jsx";
 import CharactersPage from "./pages/CharactersPage.jsx";
+import TabletopPage from "./pages/TabletopPage.jsx";
+import SessionPage from "./pages/SessionPage.jsx";
 import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 
 export default function App() {
@@ -26,7 +28,8 @@ export default function App() {
                 <Route index element={<DashboardPage />} />
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="characters" element={<CharactersPage />} />
-                <Route path="tabletop" element={<PlaceholderPage eyebrow="Jogo em tempo real" title="Mesa virtual" description="Mapas, tokens, chat e ferramentas para conduzir suas sessões." icon="tabletop" />} />
+                <Route path="tabletop" element={<TabletopPage />} />
+                <Route path="tabletop/:sessionId" element={<SessionPage />} />
                 <Route path="dice" element={<DicePage />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="friends" element={<PlaceholderPage eyebrow="Sua comunidade" title="Amigos" description="Encontre seus companheiros de aventura e organize grupos de jogo." icon="friends" />} />
