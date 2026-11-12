@@ -7,7 +7,6 @@ import {
   Crown,
   Eye,
   Pencil,
-  Play,
   Plus,
   Search,
   Swords,
@@ -49,7 +48,6 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
-  const [sessionActionId, setSessionActionId] = useState("");
   const [joinPin, setJoinPin] = useState("");
   const [joining, setJoining] = useState(false);
   const [query, setQuery] = useState("");
@@ -209,26 +207,6 @@ export default function CampaignsPage() {
     }
   }
 
-  async function handleOpenSession(campaign) {
-    if (!supabase || sessionActionId || campaign.owner_id !== user?.id) return;
-    setSessionActionId(campaign.id); setError(""); setNotice("");
-    try {
-      let response = await supabase.functions.invoke("realm-sessions", {
-        body: { action: "create", campaignId: campaign.id },
-      });
-      if (response.error || response.data?.error) {
-        const message = response.data?.error ?? response.error?.message ?? "";
-        if (!message.toLowerCase().includes("já possui") && !message.toLowerCase().includes("already")) throw new Error(message || "Não foi possível criar a sessão.");
-        response = await supabase.functions.invoke("realm-sessions", { body: { action: "campaign", campaignId: campaign.id } });
-      }
-      if (response.error) throw response.error;
-      if (response.data?.error) throw new Error(response.data.error);
-      if (!response.data?.session?.id) throw new Error("A sessão não foi retornada pelo servidor.");
-      navigate(`/campaigns/${campaign.id}`);
-    } catch (sessionError) {
-      setError(sessionError instanceof Error ? sessionError.message : "Não foi possível criar a sessão.");
-    } finally { setSessionActionId(""); }
-  }
 
   async function handleJoinWithPin(event) {
     event.preventDefault();
@@ -388,7 +366,7 @@ export default function CampaignsPage() {
                   <div className="campaign-card-actions">
                     <Link className="button button-primary" to={`/campaigns/${campaign.id}`}>Abrir campanha <ArrowUpRight size={14} /></Link>{role === "gm" && <button className="button button-secondary" type="button" onClick={() => handleOpenSession(campaign)} disabled={Boolean(sessionActionId)}><Play size={14} />{sessionActionId === campaign.id ? "Preparando..." : "Criar sessão"}</button>}
                     {ownCampaign && <button className="button button-secondary" type="button" onClick={() => openEditForm(campaign)}><Pencil size={14} /> Editar</button>}
-                    {ownCampaign && <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id || Boolean(sessionActionId)} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>}
+                    {ownCampaign && <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>}
                   </div>
                   {!ownCampaign && role === "observer" && <div className="campaign-observer-note"><Eye size={13} /> Acesso de observador</div>}
                 </div>
