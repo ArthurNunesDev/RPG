@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, ChevronLeft, Compass, Dice5, LayoutDashboard, Library, LogOut, Menu, Settings, Sparkles, Swords, Users, UserRound, X, Crown, Eye } from "lucide-react";
+import { ChevronLeft, Compass, Dice5, LayoutDashboard, Library, LogOut, Menu, Settings, Sparkles, Swords, Users, UserRound, X, Crown, Eye } from "lucide-react";
 import { isSupabaseConfigured } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
