@@ -11,7 +11,7 @@ O REALMS é publicado pelo **GitHub Pages**, usando GitHub Actions. Cada push na
 - **Site:** https://arthurnunesdev.github.io/RPG/
 - **Repositório:** https://github.com/ArthurNunesDev/RPG
 - **Hospedagem:** GitHub Pages
-- **Deploy:** GitHub Actions (workflow em `.github/workflows/deploy-pages.yml`)
+- **Deploy:** GitHub Actions (`.github/workflows/deploy-pages.yml`)
 
 O workflow gera também um `404.html` a partir do build para manter as rotas do React Router acessíveis ao atualizar ou abrir links diretamente.
 
@@ -19,7 +19,7 @@ O workflow gera também um `404.html` a partir do build para manter as rotas do 
 
 - React 19 + Vite 8
 - JavaScript (ES modules)
-- Supabase: PostgreSQL, Auth, Realtime e Storage
+- Supabase: PostgreSQL, Auth, Realtime e Edge Functions
 - React Router
 - Lucide React
 
@@ -62,19 +62,32 @@ No painel do Supabase, em **Authentication → URL Configuration**, configure:
 - **Site URL:** `https://arthurnunesdev.github.io/RPG/`
 - **Redirect URLs:** `https://arthurnunesdev.github.io/RPG/**`
 
-As migrations iniciais e de papéis foram aplicadas e verificadas no projeto dedicado. As seis tabelas principais estão com RLS habilitado, e as três tabelas de colaboração estão publicadas no Realtime.
+A Edge Function `realm-sessions` está implantada com verificação JWT habilitada. Ela valida o usuário autenticado, gera PINs de sessão e controla entrada, consulta, saída e encerramento das sessões. A chave `service_role` permanece exclusivamente no ambiente gerenciado pelo Supabase.
+
+Nunca coloque `service_role`, senhas ou segredos em variáveis `VITE_*`.
+
+## Funcionalidades implementadas
+
+- Cadastro, login, recuperação e atualização de senha pelo Supabase Auth.
+- Preferência de experiência: mestre, jogador ou observador.
+- Biblioteca com sistemas oficiais e sistemas personalizados.
+- CRUD de campanhas, com sistema de RPG vinculado.
+- Personagens de jogadores e NPCs do mestre, classificados como aliados, inimigos ou neutros.
+- Sessões de campanha com PIN de 8 caracteres, entrada de participantes e retomada de sessão ativa.
+- Papéis de mestre, jogador e observador aplicados por campanha.
+- Chat em tempo real da sessão, com observadores em modo somente leitura.
+- Políticas RLS para proteger dados e ações por usuário, campanha e sessão.
+- Favicon próprio com a identidade visual do REALMS.
+
+## Estrutura de dados
 
 O schema inclui:
 
-- Perfis vinculados ao Supabase Auth, com preferência de experiência (mestre, jogador ou observador).
+- Perfis vinculados ao Supabase Auth.
 - Sistemas de RPG com schema de ficha e regras em JSONB.
 - Campanhas e participantes com papéis de mestre, jogador ou observador.
-- Personagens com fichas flexíveis.
-- Mensagens de campanha.
-- Políticas RLS e publicação Realtime para dados compartilhados.
+- Personagens de jogadores e NPCs controlados pelo mestre.
+- Sessões persistentes associadas às campanhas, com PIN privado.
+- Mensagens isoladas por sessão.
 
-A chave publishable pode ser usada no frontend. Nunca coloque `service_role`, senhas ou segredos em variáveis `VITE_*`.
-
-## Estado do projeto
-
-Autenticação, recuperação de senha e seleção de experiência estão implementadas. CRUD de campanhas/personagens, convites, mesa virtual em tempo real e ferramentas operacionais do mestre ainda serão desenvolvidos em etapas próprias.
+As tabelas privadas de sessão não são acessíveis diretamente pelo cliente. A Edge Function realiza as operações privilegiadas após validar o JWT. As mensagens usam RLS e Realtime para permitir colaboração dentro da sessão.
