@@ -16,8 +16,8 @@ function statusIcon(status) {
 }
 function presenceFor(record) {
   if (!record) return "offline";
-  const lastSeen = new Date(record.last_seen_at).getTime();
-  if (!Number.isFinite(lastSeen) || Date.now() - lastSeen > 5 * 60_000) return "offline";
+  const heartbeat = new Date(record.updated_at ?? record.last_seen_at).getTime();
+  if (!Number.isFinite(heartbeat) || Date.now() - heartbeat > 5 * 60_000) return "offline";
   return record.status;
 }
 function timeAgo(value) {
@@ -57,7 +57,7 @@ export default function FriendsPage() {
       setFriendships(friendResult.data ?? []);
       const ids = [...new Set((friendResult.data ?? []).flatMap((item) => [item.requester_id, item.addressee_id]).filter((id) => id !== user.id))];
       if (ids.length) {
-        const { data, error: presenceError } = await supabase.from("user_presence").select("user_id,status,last_seen_at").in("user_id", ids);
+        const { data, error: presenceError } = await supabase.from("user_presence").select("user_id,status,last_seen_at,updated_at").in("user_id", ids);
         if (presenceError) throw presenceError;
         setPresence(Object.fromEntries((data ?? []).map((item) => [item.user_id, item])));
       } else setPresence({});
