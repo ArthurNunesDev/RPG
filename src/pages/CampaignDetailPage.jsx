@@ -97,6 +97,21 @@ export default function CampaignDetailPage() {
     } else audio.pause();
   },[audioUrl,playback?.is_playing,playback?.position_seconds]);
 
+  useEffect(() => {
+    if (!isGm || !playback?.is_playing || !playback?.track_id || !supabase) return undefined;
+    const syncTimer = window.setInterval(async () => {
+      const position = audioRef.current?.currentTime;
+      if (!Number.isFinite(position)) return;
+      const { error: syncError } = await supabase.from("campaign_playback").update({
+        position_seconds: position,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      }).eq("campaign_id", campaignId);
+      if (syncError) setError(syncError.message);
+    }, 12_000);
+    return () => window.clearInterval(syncTimer);
+  }, [isGm, playback?.is_playing, playback?.track_id, campaignId, user?.id]);
+
   async function createSession() {
     if (!supabase || !isGm || creatingSession) return;
     setCreatingSession(true); setError(""); setNotice("");
