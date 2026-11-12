@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, BookOpen, Check, Copy, Dice5, Eye, ImagePlus, LogOut,
-  Map, Menu, MessageCircle, Music2, Send, Shield, Swords, Trash2,
+  Map, Menu, MessageCircle, Send, Shield, Swords, Trash2,
   UserRound, Users, X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -128,7 +128,6 @@ export default function SessionPage() {
     [session?.members],
   );
   const visibleMaps = maps.filter((item) => isGm || item.is_visible);
-  const editableCharacters = characters.filter((item) => isGm || (item.owner_id === user?.id && !isObserver));
 
   const loadSession = useCallback(async (silent = false) => {
     if (!supabase || !user?.id || !sessionId) {
@@ -348,11 +347,26 @@ export default function SessionPage() {
   }
 
   async function handleMapVisibility(item) {
-    if (!supabase || !isGm) return;
-    const { error: updateError } = await supabase.from("campaign_maps")
-      .update({ is_visible: !item.is_visible }).eq("id", item.id).eq("campaign_id", campaignId);
-    if (updateError) setError(updateError.message);
-    else await loadSession(true);
+    if (!supabase || !isGm || !campaignId) return;
+    setError("");
+    if (item.is_visible) {
+      const { error: hideError } = await supabase.from("campaign_maps")
+        .update({ is_visible: false }).eq("id", item.id).eq("campaign_id", campaignId);
+      if (hideError) setError(hideError.message);
+      else await loadSession(true);
+      return;
+    }
+
+    const { error: hideOthersError } = await supabase.from("campaign_maps")
+      .update({ is_visible: false }).eq("campaign_id", campaignId);
+    if (hideOthersError) {
+      setError(hideOthersError.message);
+      return;
+    }
+    const { error: showError } = await supabase.from("campaign_maps")
+      .update({ is_visible: true }).eq("id", item.id).eq("campaign_id", campaignId);
+    if (showError) setError(showError.message);
+    await loadSession(true);
   }
 
   async function handleDeleteMap(item) {
@@ -489,7 +503,7 @@ export default function SessionPage() {
           </section>}
 
           {activeSection === "maps" && <section className="room-section">
-            <div className="room-section-heading"><div><span className="eyebrow">CENÁRIOS E CARTOGRAFIA</span><h2>Mapas da aventura</h2><p>{isGm ? "Adicione mapas e controle quais ficam visíveis para os jogadores." : "Visualize os mapas que o mestre disponibilizou para a sessão."}</p></div><span className="room-count">{visibleMaps.length} {visibleMaps.length === 1 ? "mapa" : "mapas"}</span></div>
+            <div className="room-section-heading"><div><span className="eyebrow">CENÁRIOS E CARTOGRAFIA</span><h2>Mapas da aventura</h2><p>{isGm ? "Adicione mapas e escolha qual cenário ficará disponível para os jogadores." : "Visualize o mapa que o mestre disponibilizou para a sessão."}</p></div><span className="room-count">{visibleMaps.length} {visibleMaps.length === 1 ? "mapa" : "mapas"}</span></div>
             {isGm && <form className="panel room-map-upload" onSubmit={handleUploadMap}>
               <div className="room-upload-intro"><ImagePlus size={19} /><div><strong>Adicionar mapa</strong><span>JPG, PNG, WebP ou GIF · até 15 MB</span></div></div>
               <label className="room-field"><span>Nome do mapa</span><input value={mapTitle} onChange={(event) => setMapTitle(event.target.value)} maxLength={100} placeholder="Ex.: Ruínas de Valdora" required /></label>
