@@ -173,7 +173,7 @@ Deno.serve(async (request: Request) => {
     if (createError) {
       const message = errorMessage(createError);
       if (message.includes("CAMPAIGN_GM_REQUIRED")) return respond({ error: "Somente o mestre desta campanha pode criar a sessão." }, 403);
-      if (message.includes("CAMPAIGN_SESSION_ACTIVE")) return respond({ error: "Esta campanha já possui uma sessão com PIN ativo." }, 409);
+      if (message.includes("CAMPAIGN_SESSION_ACTIVE") || message.includes("CAMPAIGN_SESSION_ALREADY_CREATED")) return respond({ error: "Esta campanha já possui uma sessão com PIN ativo." }, 409);
       return respond({ error: "Não foi possível criar a sessão da campanha." }, 500);
     }
 
