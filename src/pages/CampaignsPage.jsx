@@ -7,6 +7,7 @@ import {
   Crown,
   Eye,
   Pencil,
+  Play,
   Plus,
   Search,
   Swords,
@@ -14,7 +15,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import "../styles/campaigns.css";
@@ -42,11 +43,13 @@ function formatDate(value) {
 
 export default function CampaignsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [systems, setSystems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
+  const [sessionActionId, setSessionActionId] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
@@ -198,6 +201,49 @@ export default function CampaignsPage() {
     }
   }
 
+  async function handleOpenSession(campaign) {
+    if (!supabase || sessionActionId) return;
+    setSessionActionId(campaign.id);
+    setError("");
+    setNotice("");
+    try {
+      const { data: activeData, error: activeError } = await supabase.functions.invoke("realm-sessions", {
+        body: { action: "active", campaignId: campaign.id },
+      });
+      if (activeError) throw activeError;
+      if (activeData?.error) throw new Error(activeData.error);
+
+      let session = activeData?.session ?? null;
+      if (!session) {
+        const { data: createData, error: createError } = await supabase.functions.invoke("realm-sessions", {
+          body: { action: "create", campaignId: campaign.id },
+        });
+        if (createError) throw createError;
+        if (createData?.error) {
+          if (createData.error.includes("já possui uma sessão ativa")) {
+            const { data: retryData, error: retryError } = await supabase.functions.invoke("realm-sessions", {
+              body: { action: "active", campaignId: campaign.id },
+            });
+            if (retryError) throw retryError;
+            if (retryData?.error) throw new Error(retryData.error);
+            session = retryData?.session ?? null;
+          } else {
+            throw new Error(createData.error);
+          }
+        } else {
+          session = createData?.session ?? null;
+        }
+      }
+
+      if (!session?.id) throw new Error("Não foi possível abrir a sessão desta campanha.");
+      navigate(`/tabletop/${session.id}`);
+    } catch (sessionError) {
+      setError(sessionError instanceof Error ? sessionError.message : "Não foi possível abrir a sessão.");
+    } finally {
+      setSessionActionId("");
+    }
+  }
+
   async function handleDelete(campaign) {
     if (!supabase || !user?.id || campaign.owner_id !== user.id) return;
     const confirmed = window.confirm(
@@ -335,8 +381,9 @@ export default function CampaignsPage() {
                     <span><CalendarDays size={13} />{formatDate(campaign.updated_at)}</span>
                   </div>
                   {ownCampaign && <div className="campaign-card-actions">
+                    <button className="button button-secondary" type="button" onClick={() => handleOpenSession(campaign)} disabled={Boolean(sessionActionId)}><Play size={14} />{sessionActionId === campaign.id ? "Abrindo..." : "Abrir sessão"}</button>
                     <button className="button button-secondary" type="button" onClick={() => openEditForm(campaign)}><Pencil size={14} /> Editar</button>
-                    <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>
+                    <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id || Boolean(sessionActionId)} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>
                   </div>}
                   {!ownCampaign && role === "observer" && <div className="campaign-observer-note"><Eye size={13} /> Acesso de observador</div>}
                 </div>
