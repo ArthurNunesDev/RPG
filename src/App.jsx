@@ -11,7 +11,7 @@ import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route element={<PublicOnly />}>
             <Route path="/auth" element={<AuthPage />} />
