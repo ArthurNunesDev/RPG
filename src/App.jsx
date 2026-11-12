@@ -8,6 +8,7 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import DicePage from "./pages/DicePage.jsx";
 import LibraryPage from "./pages/LibraryPage.jsx";
 import CampaignsPage from "./pages/CampaignsPage.jsx";
+import CharactersPage from "./pages/CharactersPage.jsx";
 import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 
 export default function App() {
@@ -24,7 +25,7 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="campaigns" element={<CampaignsPage />} />
-                <Route path="characters" element={<PlaceholderPage eyebrow="Seus heróis" title="Personagens" description="Reúna fichas, atributos, habilidades e inventários em um só lugar." icon="characters" />} />
+                <Route path="characters" element={<CharactersPage />} />
                 <Route path="tabletop" element={<PlaceholderPage eyebrow="Jogo em tempo real" title="Mesa virtual" description="Mapas, tokens, chat e ferramentas para conduzir suas sessões." icon="tabletop" />} />
                 <Route path="dice" element={<DicePage />} />
                 <Route path="library" element={<LibraryPage />} />
