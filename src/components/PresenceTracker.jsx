@@ -9,7 +9,9 @@ export default function PresenceTracker() {
     let mounted = true;
     let inactivityTimer;
     let heartbeat;
+    let currentStatus = "online";
     const update = async (status) => {
+      currentStatus = status;
       if (!mounted) return;
       const { error } = await supabase.rpc("set_my_presence", { p_status: status });
       if (error && mounted) console.warn("Presence update failed:", error.message);
@@ -30,7 +32,7 @@ export default function PresenceTracker() {
     };
     markActive();
     heartbeat = window.setInterval(() => {
-      if (document.visibilityState === "visible") void update("online");
+      if (document.visibilityState === "visible") void update(currentStatus);
     }, 45_000);
     window.addEventListener("pointerdown", markActive, { passive: true });
     window.addEventListener("keydown", markActive);
