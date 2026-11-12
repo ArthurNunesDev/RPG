@@ -87,7 +87,7 @@ create table if not exists public.campaigns (
   description text not null default '',
   cover_url text,
   visibility text not null default 'private'
-    check (visibility in ('private', 'unlisted', 'public')),
+    check (visibility = 'private'),
   status text not null default 'active'
     check (status in ('active', 'paused', 'archived')),
   created_at timestamptz not null default now(),
@@ -281,13 +281,27 @@ create policy "campaign members read campaigns"
 drop policy if exists "users create their own campaigns" on public.campaigns;
 create policy "users create their own campaigns"
   on public.campaigns for insert to authenticated
-  with check (owner_id = (select auth.uid()));
+  with check (
+    owner_id = (select auth.uid())
+    and exists (
+      select 1 from public.game_systems gs
+      where gs.id = game_system_id
+        and (gs.is_official or gs.created_by = (select auth.uid()))
+    )
+  );
 
 drop policy if exists "campaign owners update campaigns" on public.campaigns;
 create policy "campaign owners update campaigns"
   on public.campaigns for update to authenticated
   using (owner_id = (select auth.uid()))
-  with check (owner_id = (select auth.uid()));
+  with check (
+    owner_id = (select auth.uid())
+    and exists (
+      select 1 from public.game_systems gs
+      where gs.id = game_system_id
+        and (gs.is_official or gs.created_by = (select auth.uid()))
+    )
+  );
 
 drop policy if exists "campaign owners delete campaigns" on public.campaigns;
 create policy "campaign owners delete campaigns"
@@ -376,6 +390,7 @@ create policy "campaign members send messages"
   on public.campaign_messages for insert to authenticated
   with check (
     author_id = (select auth.uid())
+    and message_type = 'chat'
     and (select private.is_campaign_member(campaign_id))
   );
 
