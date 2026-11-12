@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import "../styles/settings.css";
 
-const defaults = { soundEffects: false, animations: true, compactMode: false, defaultDie: 20 };
+const defaults = { theme: "dark", soundEffects: false, animations: true, compactMode: false, defaultDie: 20 };
 
 export default function SettingsPage() {
   const { user, profile, refreshProfile } = useAuth();
@@ -49,6 +49,7 @@ export default function SettingsPage() {
       <form onSubmit={saveSettings} className="settings-sections">
         <section className="panel settings-card">
           <div className="settings-card-heading"><div className="settings-icon"><Sparkles size={19} /></div><div><h2>Aparência e interface</h2><p>Controle o movimento e a densidade dos elementos.</p></div></div>
+          <label className="setting-select"><span>Tema da interface</span><select value={preferences.theme} onChange={(event) => updatePreference("theme", event.target.value)}><option value="dark">Escuro · fantasia</option><option value="light">Claro</option></select></label>
           <label className="setting-row"><span><strong>Animações</strong><small>Ativa transições e efeitos visuais da interface e dos dados.</small></span><input type="checkbox" checked={preferences.animations} onChange={(event) => updatePreference("animations", event.target.checked)} /></label>
           <label className="setting-row"><span><strong>Interface compacta</strong><small>Reduz espaçamentos para exibir mais conteúdo na tela.</small></span><input type="checkbox" checked={preferences.compactMode} onChange={(event) => updatePreference("compactMode", event.target.checked)} /></label>
         </section>
