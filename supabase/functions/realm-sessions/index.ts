@@ -91,7 +91,7 @@ Deno.serve(async (request: Request) => {
   }
 
   const action = typeof payload.action === "string" ? payload.action : "";
-  if (!["create", "join", "info", "leave", "end"].includes(action)) {
+  if (!["create", "join", "info", "active", "leave", "end"].includes(action)) {
     return respond({ error: "Ação de sessão inválida." }, 400);
   }
 
@@ -190,6 +190,17 @@ Deno.serve(async (request: Request) => {
 
   const sessionId = typeof payload.sessionId === "string" ? payload.sessionId : "";
   if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return respond({ error: "Sessão inválida." }, 400);
+
+  if (action === "active") {
+    const campaignId = typeof payload.campaignId === "string" ? payload.campaignId : "";
+    if (!/^[0-9a-f-]{36}$/i.test(campaignId)) return respond({ error: "Campanha inválida." }, 400);
+    const { data, error } = await admin.rpc("get_active_realm_campaign_session", {
+      p_user_id: userId,
+      p_campaign_id: campaignId,
+    });
+    if (error) return respond({ error: errorMessage(error).includes("CAMPAIGN_GM_REQUIRED") ? "Somente o mestre pode consultar a sessão ativa." : "Não foi possível consultar a sessão." }, 403);
+    return respond({ session: data });
+  }
 
   if (action === "info") {
     const { data, error } = await admin.rpc("get_realm_session", {
