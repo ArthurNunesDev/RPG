@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, Compass, Dice5, Eye, Sparkles, Swords, UserRound, Crown, Users } from "lucide-react";
+import { ArrowUpRight, BookOpen, Eye, Sparkles, Swords, UserRound, Crown, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { isSupabaseConfigured } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -13,9 +13,7 @@ const roleContent = {
     primary: { to: "/campaigns", label: "Gerenciar campanhas", icon: Swords },
     links: [
       { to: "/campaigns", icon: Swords, title: "Criar campanha", description: "Dê vida a um novo mundo.", tone: "gold" },
-      { to: "/tabletop", icon: Compass, title: "Preparar sessão", description: "Organize a mesa virtual.", tone: "blue" },
       { to: "/library", icon: BookOpen, title: "Biblioteca", description: "Consulte regras e conteúdos.", tone: "violet" },
-      { to: "/dice", icon: Dice5, title: "Rolar dados", description: "Faça testes para a aventura.", tone: "green" },
     ],
   },
   player: {
@@ -28,8 +26,6 @@ const roleContent = {
     links: [
       { to: "/characters", icon: UserRound, title: "Meus personagens", description: "Cuide das suas fichas e inventário.", tone: "violet" },
       { to: "/campaigns", icon: Swords, title: "Minhas campanhas", description: "Acompanhe suas aventuras.", tone: "gold" },
-      { to: "/tabletop", icon: Compass, title: "Entrar na mesa", description: "Participe da próxima sessão.", tone: "blue" },
-      { to: "/dice", icon: Dice5, title: "Rolar dados", description: "Deixe a sorte decidir.", tone: "green" },
     ],
   },
   observer: {
@@ -38,16 +34,15 @@ const roleContent = {
     lead: "Encontre sessões disponíveis e assista às aventuras sem interferir no andamento da campanha.",
     heroTitle: "Toda aventura merece uma plateia.",
     heroCopy: "Acompanhe sessões para as quais você recebeu acesso de observador.",
-    primary: { to: "/tabletop", label: "Assistir sessões", icon: Eye },
+    primary: { to: "/campaigns", label: "Ver campanhas", icon: Eye },
     links: [
-      { to: "/tabletop", icon: Eye, title: "Assistir sessões", description: "Acompanhe uma sessão autorizada.", tone: "violet" },
       { to: "/campaigns", icon: Swords, title: "Campanhas", description: "Veja as campanhas disponíveis para você.", tone: "gold" },
     ],
   },
 };
 
 export default function DashboardPage() {
-  const { profile, user } = useAuth();
+  const { profile } = useAuth();
   const role = profile?.preferred_role ?? "player";
   const content = roleContent[role] ?? roleContent.player;
   const PrimaryIcon = content.primary.icon;
@@ -94,12 +89,12 @@ export default function DashboardPage() {
 
       <section className="bottom-grid">
         <div className="panel panel-empty">
-          <div className="panel-heading"><div><p className="eyebrow">{role === "observer" ? "SESSÕES" : "SUA JORNADA"}</p><h2>{role === "observer" ? "Sessões para assistir" : role === "gm" ? "Campanhas recentes" : "Campanhas em andamento"}</h2></div><Link to={role === "observer" ? "/tabletop" : "/campaigns"} className="text-link">Ver mais <ArrowUpRight size={14} /></Link></div>
-          <div className="empty-state"><div className="empty-icon">{role === "observer" ? <Eye size={23} /> : <BookOpen size={23} />}</div><h3>{role === "observer" ? "Nenhuma sessão disponível ainda" : "Sua primeira história ainda está por vir"}</h3><p>{role === "observer" ? "Quando você receber acesso para assistir, as sessões aparecerão aqui." : "Quando você criar ou entrar em uma campanha, ela aparecerá aqui."}</p><Link to={role === "observer" ? "/tabletop" : "/campaigns"} className="button button-secondary">{role === "observer" ? "Explorar sessões" : "Ver campanhas"}</Link></div>
+          <div className="panel-heading"><div><p className="eyebrow">{role === "observer" ? "SESSÕES" : "SUA JORNADA"}</p><h2>{role === "observer" ? "Campanhas disponíveis" : role === "gm" ? "Campanhas recentes" : "Campanhas em andamento"}</h2></div><Link to="/campaigns" className="text-link">Ver mais <ArrowUpRight size={14} /></Link></div>
+          <div className="empty-state"><div className="empty-icon">{role === "observer" ? <Eye size={23} /> : <BookOpen size={23} />}</div><h3>{role === "observer" ? "Nenhuma campanha disponível ainda" : "Sua primeira história ainda está por vir"}</h3><p>{role === "observer" ? "Quando você receber acesso, as campanhas disponíveis aparecerão aqui." : "Quando você criar ou entrar em uma campanha, ela aparecerá aqui."}</p><Link to={role === "observer" ? "/tabletop" : "/campaigns"} className="button button-secondary">{"Ver campanhas"}</Link></div>
         </div>
         <aside className="panel setup-panel">
           <div className="setup-icon"><Users size={21} /></div><p className="eyebrow">SEU PERFIL</p><h2>{role === "gm" ? "O destino do mundo está em suas mãos." : role === "observer" ? "Assista. Descubra. Acompanhe." : "Sua próxima grande história espera por você."}</h2>
-          <p className="setup-copy">{role === "gm" ? "As ferramentas de criação e controle de campanhas serão liberadas conforme os módulos forem implementados." : role === "observer" ? "Você verá apenas o conteúdo das sessões em que tiver autorização para assistir." : "Suas fichas e ações serão individuais em cada sessão, respeitando as regras da campanha."}</p>
+          <p className="setup-copy">{role === "gm" ? "Crie suas campanhas, prepare recursos e conduza sessões diretamente no espaço de cada aventura." : role === "observer" ? "Você verá apenas o conteúdo das sessões em que tiver autorização para assistir." : "Suas fichas e ações serão individuais em cada sessão, respeitando as regras da campanha."}</p>
           <div className="setup-status"><span className={isSupabaseConfigured ? "status-indicator status-indicator--ready" : "status-indicator"} /><span>{isSupabaseConfigured ? "Supabase configurado" : "Aguardando configuração do Supabase"}</span></div>
         </aside>
       </section>
