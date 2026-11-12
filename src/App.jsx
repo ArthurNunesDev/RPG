@@ -5,17 +5,14 @@ import { PublicOnly, RequireAuth, RequireRole } from "./components/RouteGuards.j
 import AuthPage from "./pages/AuthPage.jsx";
 import RoleSelectionPage from "./pages/RoleSelectionPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
-import DicePage from "./pages/DicePage.jsx";
 import LibraryPage from "./pages/LibraryPage.jsx";
 import CampaignsPage from "./pages/CampaignsPage.jsx";
 import CharactersPage from "./pages/CharactersPage.jsx";
-import TabletopPage from "./pages/TabletopPage.jsx";
 import SessionPage from "./pages/SessionPage.jsx";
 import AccountPage from "./pages/AccountPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx";
 import CampaignDetailPage from "./pages/CampaignDetailPage.jsx";
-import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 
 export default function App() {
   return (
@@ -33,9 +30,8 @@ export default function App() {
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
                 <Route path="characters" element={<CharactersPage />} />
-                <Route path="tabletop" element={<TabletopPage />} />
+                <Route path="tabletop" element={<Navigate to="/campaigns" replace />} />
                 <Route path="tabletop/:sessionId" element={<SessionPage />} />
-                <Route path="dice" element={<DicePage />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="friends" element={<FriendsPage />} />
                 <Route path="account" element={<AccountPage />} />
