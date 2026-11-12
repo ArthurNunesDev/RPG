@@ -95,10 +95,10 @@ export default function CampaignDetailPage() {
       if (Math.abs(audio.currentTime - Number(playback.position_seconds ?? 0)) > 3) audio.currentTime = Number(playback.position_seconds ?? 0);
       void audio.play().catch(() => setError("O navegador bloqueou a reprodução automática. Use o botão de reprodução."));
     } else audio.pause();
-  },[audioUrl,playback?.is_playing,playback?.position_seconds,activeTab]);
+  },[audioUrl,playback?.is_playing,playback?.position_seconds]);
 
   useEffect(() => {
-    if (!isGm || activeTab !== "music" || !playback?.is_playing || !playback?.track_id || !supabase) return undefined;
+    if (!isGm || !playback?.is_playing || !playback?.track_id || !supabase) return undefined;
     const syncTimer = window.setInterval(async () => {
       const position = audioRef.current?.currentTime;
       if (!Number.isFinite(position)) return;
@@ -110,7 +110,7 @@ export default function CampaignDetailPage() {
       if (syncError) setError(syncError.message);
     }, 12_000);
     return () => window.clearInterval(syncTimer);
-  }, [isGm, activeTab, playback?.is_playing, playback?.track_id, campaignId, user?.id]);
+  }, [isGm, playback?.is_playing, playback?.track_id, campaignId, user?.id]);
 
   async function createSession() {
     if (!supabase || !isGm || creatingSession) return;
@@ -209,6 +209,7 @@ export default function CampaignDetailPage() {
     <Link to="/campaigns" className="campaign-detail-back"><ArrowLeft size={15}/> Todas as campanhas</Link>
     <header className="campaign-detail-hero panel"><div className="campaign-detail-emblem"><Map size={29}/></div><div className="campaign-detail-title"><p className="eyebrow">{campaign.game_systems?.name ?? "CAMPANHA"} · {isGm ? "MESTRE" : role === "observer" ? "OBSERVADOR" : "JOGADOR"}</p><h1>{campaign.title}</h1><p>{campaign.description || "Uma nova aventura está prestes a começar."}</p></div><span className="campaign-detail-member-count"><Users size={14}/>{campaign.campaign_members?.length ?? 0}</span></header>
     {notice && <p className="campaign-detail-notice" role="status">{notice}</p>}{error && <p className="campaign-detail-error" role="alert">{error}</p>}
+    <audio ref={audioRef} src={audioUrl || undefined} preload="auto" hidden onEnded={()=>isGm&&setPlaybackState(false)} />
     <nav className="campaign-detail-tabs" aria-label="Seções da campanha">
       {["overview","maps","music","dice"].map((tab)=> <button type="button" key={tab} className={activeTab===tab?"campaign-tab active":"campaign-tab"} onClick={()=>setActiveTab(tab)}>{tab==="overview"?"Visão geral":tab==="maps"?"Mapas":tab==="music"?"Trilhas sonoras":"Dados"}</button>)}
     </nav>
@@ -234,7 +235,7 @@ export default function CampaignDetailPage() {
       {isGm && <form className="panel campaign-upload-form" onSubmit={uploadTrack}><label><span>Nome da trilha</span><input value={trackTitle} onChange={(event)=>setTrackTitle(event.target.value)} maxLength={100} placeholder="Ex.: Exploração da masmorra" required/></label><label className="campaign-file-input"><AudioLines size={17}/><span>Selecionar áudio</span><input name="trackFile" type="file" accept="audio/*" required/></label><button className="button button-primary" type="submit" disabled={uploading==="track"}>{uploading==="track"?"Enviando...":"Adicionar trilha"}</button></form>}
       <div className="campaign-track-list">{visibleTracks.map((track)=> <article className="panel campaign-track-row" key={track.id}><span className="campaign-track-icon"><Music2 size={18}/></span><div className="campaign-track-copy"><strong>{track.title}</strong><small>{playback?.track_id===track.id && playback?.is_playing?"Tocando agora":"Trilha preparada"}</small></div>{isGm && <button className="button button-secondary" type="button" onClick={()=>playTrack(track)}><Play size={14}/> Tocar</button>}{isGm && <button className="icon-button" type="button" title={track.is_visible?"Ocultar dos jogadores":"Liberar para jogadores"} onClick={()=>toggleVisibility("campaign_tracks",track)}><Eye size={15}/></button>}{isGm && <button className="icon-button" type="button" aria-label="Excluir trilha" onClick={()=>removeAsset("campaign_tracks",track)}><Trash2 size={15}/></button>}</article>)}</div>
       {!visibleTracks.length && <div className="panel campaign-resource-empty"><Music2 size={25}/><strong>{isGm?"Nenhuma trilha adicionada ainda":"O mestre ainda não liberou trilhas sonoras."}</strong></div>}
-      <div className="panel campaign-audio-player"><div className="campaign-track-icon"><Volume2 size={19}/></div><div className="campaign-track-copy"><strong>{currentTrack?.title ?? "Nenhuma trilha selecionada"}</strong><small>{playback?.is_playing?"Reprodução sincronizada da campanha":"Aguardando o mestre selecionar uma trilha"}</small></div>{isGm && <button className="button button-secondary" type="button" disabled={!playback?.track_id} onClick={()=>setPlaybackState(!playback?.is_playing)}>{playback?.is_playing?"Pausar":"Retomar"}</button>}{!isGm && playback?.is_playing && <button className="button button-secondary" type="button" onClick={()=>audioRef.current?.play().catch(()=>setError("Não foi possível iniciar o áudio."))}>Ativar áudio</button>}<audio ref={audioRef} src={audioUrl || undefined} controls={isGm} preload="none" onEnded={()=>isGm&&setPlaybackState(false)} /></div>
+      <div className="panel campaign-audio-player"><div className="campaign-track-icon"><Volume2 size={19}/></div><div className="campaign-track-copy"><strong>{currentTrack?.title ?? "Nenhuma trilha selecionada"}</strong><small>{playback?.is_playing?"Reprodução sincronizada da campanha":"Aguardando o mestre selecionar uma trilha"}</small></div>{isGm && <button className="button button-secondary" type="button" disabled={!playback?.track_id} onClick={()=>setPlaybackState(!playback?.is_playing)}>{playback?.is_playing?"Pausar":"Retomar"}</button>}{playback?.is_playing && <button className="button button-secondary" type="button" onClick={()=>audioRef.current?.play().catch(()=>setError("Não foi possível iniciar o áudio."))}>Ativar áudio</button>}</div>
     </section>}
 
     {activeTab==="dice" && <DicePage campaignId={campaignId} embedded readOnly={role==="observer"}/>}
