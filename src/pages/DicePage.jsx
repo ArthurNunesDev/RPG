@@ -42,6 +42,7 @@ export default function DicePage() {
   const [sides, setSides] = useState(profile?.preferences?.defaultDie ?? 20);
   const [quantity, setQuantity] = useState(1);
   const [modifier, setModifier] = useState(0);
+  const [mode, setMode] = useState("normal");
   const [campaigns, setCampaigns] = useState([]);
   const [campaignId, setCampaignId] = useState("");
   const [scope, setScope] = useState("personal");
@@ -110,11 +111,21 @@ export default function DicePage() {
     }
     setRolling(true); setError("");
     try {
-      const rolls = Array.from({ length: quantity }, () => ({ sides, value: rollDie(sides) }));
+      const rollCount = mode === "normal" ? quantity : 2;
+      const rolls = Array.from({ length: rollCount }, () => ({ sides, value: rollDie(sides), kept: true }));
+      if (mode !== "normal") {
+        const keptIndex = rolls[0].value === rolls[1].value
+          ? 0
+          : mode === "advantage"
+            ? (rolls[0].value > rolls[1].value ? 0 : 1)
+            : (rolls[0].value < rolls[1].value ? 0 : 1);
+        rolls.forEach((die, index) => { die.kept = index === keptIndex; });
+      }
       if (profile?.preferences?.soundEffects) { try { playRollSound(); } catch { /* Audio is optional. */ } }
-      const sum = rolls.reduce((total, die) => total + die.value, 0);
+      const sum = rolls.reduce((total, die) => total + (die.kept ? die.value : 0), 0);
       const total = sum + Number(modifier || 0);
-      const formula = `${quantity}d${sides}${modifier >= 0 ? "+" : ""}${modifier || 0}`;
+      const modeLabel = mode === "advantage" ? " (vantagem)" : mode === "disadvantage" ? " (desvantagem)" : "";
+      const formula = `${mode === "normal" ? quantity : 1}d${sides}${modeLabel}${modifier >= 0 ? "+" : ""}${modifier || 0}`;
       const entry = { id: crypto.randomUUID(), formula, rolls, total, scope, campaign_id: campaignId || null, created_at: new Date().toISOString(), profiles: { username: profile?.username ?? "você" } };
       setResult(entry);
       supabase.from("roll_history").insert({
@@ -173,20 +184,21 @@ export default function DicePage() {
             {diceOptions.map((option) => <button className={`dice-option ${sides === option ? "dice-option--active" : ""}`} type="button" key={option} onClick={() => setSides(option)} aria-pressed={sides === option}>d{option}</button>)}
           </div>
           <div className="dice-input-grid">
-            <label><span>Quantidade</span><input type="number" min="1" max="20" value={quantity} onChange={(event) => setQuantity(Math.min(20, Math.max(1, Number(event.target.value) || 1)))} /></label>
+            <label><span>Quantidade</span><input type="number" min="1" max="20" value={quantity} disabled={mode !== "normal"} onChange={(event) => setQuantity(Math.min(20, Math.max(1, Number(event.target.value) || 1)))} /></label>
             <label><span>Modificador</span><input type="number" min="-1000" max="1000" value={modifier} onChange={(event) => setModifier(Math.min(1000, Math.max(-1000, Number(event.target.value) || 0)))} /></label>
           </div>
-          <div className="dice-formula-preview">{quantity}d{sides}{modifier >= 0 ? "+" : ""}{modifier}</div>
+          <label className="dice-mode-field"><span>Modo de rolagem</span><select value={mode} onChange={(event) => setMode(event.target.value)} disabled={sides !== 20 || quantity !== 1}><option value="normal">Normal</option><option value="advantage">Vantagem · maior resultado</option><option value="disadvantage">Desvantagem · menor resultado</option></select></label>
+          <div className="dice-formula-preview">{mode === "normal" ? quantity : 1}d{sides}{mode === "advantage" ? " (vantagem)" : mode === "disadvantage" ? " (desvantagem)" : ""}{modifier >= 0 ? "+" : ""}{modifier}</div>
           <button className="button button-primary dice-roll-button" type="button" onClick={handleRoll} disabled={rolling || (isShared && !canUseCampaignHistory)}><Dice1 size={19} />{rolling ? "Rolando..." : "Rolar dados"}</button>
           {error && <p className="form-error" role="alert">{error}</p>}
-          {result && <div className="dice-result-breakdown"><span>Dados: {result.rolls.map((die) => die.value).join(" + ")}</span><strong>Total: {result.total}</strong></div>}
+          {result && <div className="dice-result-breakdown"><span>Dados: {result.rolls.map((die) => `${die.value}${die.kept ? " ✓" : ""}`).join(" · ")}</span><strong>Total: {result.total}</strong></div>}
         </div>
 
         <aside className="panel dice-history">
           <div className="panel-heading"><div><p className="eyebrow">{isShared ? "REGISTRO DO GRUPO" : "SUAS ÚLTIMAS JOGADAS"}</p><h2>{isShared ? "Histórico da campanha" : "Histórico pessoal"}</h2></div><button className="icon-button" type="button" onClick={clearHistory} disabled={!history.some((entry) => entry.user_id === user?.id)} aria-label="Limpar minhas rolagens" title="Limpar minhas rolagens"><RotateCcw size={16} /></button></div>
           {loading ? <div className="history-empty"><Dices size={24} /><p>Carregando histórico...</p></div> : history.length ? (
             <ul className="roll-history roll-history-detailed">
-              {history.map((entry) => <li key={entry.id}><div className="history-entry-main"><span className="history-die">{entry.formula}</span><strong>{entry.total}</strong></div><div className="history-entry-meta"><span>@{entry.profiles?.username ?? (entry.user_id === user?.id ? profile?.username : "aventureiro")}</span><time dateTime={entry.created_at}>{formatDate(entry.created_at)}</time></div><span className="history-roll-values">{(entry.rolls ?? []).map((die) => die.value).join(" · ")}</span></li>)}
+              {history.map((entry) => <li key={entry.id}><div className="history-entry-main"><span className="history-die">{entry.formula}</span><strong>{entry.total}</strong></div><div className="history-entry-meta"><span>@{entry.profiles?.username ?? (entry.user_id === user?.id ? profile?.username : "aventureiro")}</span><time dateTime={entry.created_at}>{formatDate(entry.created_at)}</time></div><span className="history-roll-values">{(entry.rolls ?? []).map((die) => `${die.value}${die.kept === false ? "" : " ✓"}`).join(" · ")}</span></li>)}
             </ul>
           ) : <div className="history-empty"><Dices size={24} /><p>{isShared ? "Ainda não há rolagens compartilhadas." : "Suas rolagens pessoais aparecerão aqui."}</p></div>}
         </aside>
