@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, KeyRound, Mail, Swords, UserRound } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -17,6 +17,18 @@ export default function AuthPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mode, setMode] = useState("login");
+
+  useEffect(() => {
+    if (!supabase) return undefined;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setMode("update");
+        setNotice("Defina uma nova senha para sua conta.");
+        setError("");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +47,13 @@ export default function AuthPage() {
     }
     setBusy(true);
     try {
-      if (mode === "signup") {
+      if (mode === "update") {
+        const { error: authError } = await supabase.auth.updateUser({ password });
+        if (authError) throw authError;
+        setNotice("Senha atualizada. Você já pode continuar usando o REALMS.");
+        setPassword("");
+        setMode("login");
+      } else if (mode === "signup") {
         const { data, error: authError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -68,6 +86,7 @@ export default function AuthPage() {
 
   const isSignup = mode === "signup";
   const isReset = mode === "reset";
+  const isUpdate = mode === "update";
 
   return (
     <main className="auth-screen">
@@ -79,8 +98,8 @@ export default function AuthPage() {
         </Link>
         <div className="auth-heading">
           <p className="eyebrow">{isReset ? "RECUPERAR ACESSO" : isSignup ? "SUA JORNADA COMEÇA" : "BEM-VINDO DE VOLTA"}</p>
-          <h1>{isReset ? "Recupere sua senha" : isSignup ? "Crie sua conta" : "Entre no seu reino"}</h1>
-          <p>{isReset ? "Informe seu e-mail para receber as instruções." : isSignup ? "Prepare-se para construir histórias memoráveis." : "A próxima aventura está esperando por você."}</p>
+          <h1>{isReset ? "Recupere sua senha" : isUpdate ? "Crie uma nova senha" : isSignup ? "Crie sua conta" : "Entre no seu reino"}</h1>
+          <p>{isReset ? "Informe seu e-mail para receber as instruções." : isUpdate ? "Escolha uma senha segura para continuar." : isSignup ? "Prepare-se para construir histórias memoráveis." : "A próxima aventura está esperando por você."}</p>
         </div>
 
         {!configured && <p className="auth-alert" role="alert">Supabase não configurado. Copie .env.example para .env.local e reinicie o Vite.</p>}
@@ -98,19 +117,19 @@ export default function AuthPage() {
           {!isReset && (
             <label className="auth-field">
               <span>Senha</span>
-              <span className="auth-input-wrap"><KeyRound size={17} /><input type={showPassword ? "text" : "password"} autoComplete={isSignup ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required placeholder="Mínimo de 6 caracteres" /><button className="auth-visibility" type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span>
+              <span className="auth-input-wrap"><KeyRound size={17} /><input type={showPassword ? "text" : "password"} autoComplete={isSignup || isUpdate ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required placeholder="Mínimo de 6 caracteres" /><button className="auth-visibility" type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span>
             </label>
           )}
           {mode === "login" && <button className="auth-text-button auth-forgot" type="button" onClick={() => { setMode("reset"); setError(""); setNotice(""); }}>Esqueci minha senha</button>}
           {error && <p className="auth-error" role="alert">{error}</p>}
           {notice && <p className="auth-notice" role="status">{notice}</p>}
           <button className="button button-primary auth-submit" type="submit" disabled={busy || !configured}>
-            {busy ? "Aguarde..." : isReset ? "Enviar instruções" : isSignup ? "Criar conta" : "Entrar"}
+            {busy ? "Aguarde..." : isReset ? "Enviar instruções" : isUpdate ? "Atualizar senha" : isSignup ? "Criar conta" : "Entrar"}
           </button>
         </form>
 
         <div className="auth-switch">
-          {isReset ? <button type="button" className="auth-text-button" onClick={() => setMode("login")}><ArrowLeft size={14} /> Voltar para o login</button> : isSignup ? <>Já possui uma conta? <button type="button" className="auth-text-button" onClick={() => { setMode("login"); setError(""); setNotice(""); }}>Entrar</button></> : <>Ainda não tem uma conta? <button type="button" className="auth-text-button" onClick={() => { setMode("signup"); setError(""); setNotice(""); }}>Criar conta</button></>}
+          {isReset ? <button type="button" className="auth-text-button" onClick={() => setMode("login")}><ArrowLeft size={14} /> Voltar para o login</button> : isUpdate ? null : isSignup ? <>Já possui uma conta? <button type="button" className="auth-text-button" onClick={() => { setMode("login"); setError(""); setNotice(""); }}>Entrar</button></> : <>Ainda não tem uma conta? <button type="button" className="auth-text-button" onClick={() => { setMode("signup"); setError(""); setNotice(""); }}>Criar conta</button></>}
         </div>
       </section>
       <p className="auth-footnote">UM UNIVERSO DE POSSIBILIDADES</p>
