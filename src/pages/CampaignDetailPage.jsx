@@ -95,10 +95,10 @@ export default function CampaignDetailPage() {
       if (Math.abs(audio.currentTime - Number(playback.position_seconds ?? 0)) > 3) audio.currentTime = Number(playback.position_seconds ?? 0);
       void audio.play().catch(() => setError("O navegador bloqueou a reprodução automática. Use o botão de reprodução."));
     } else audio.pause();
-  },[audioUrl,playback?.is_playing,playback?.position_seconds]);
+  },[audioUrl,playback?.is_playing,playback?.position_seconds,activeTab]);
 
   useEffect(() => {
-    if (!isGm || !playback?.is_playing || !playback?.track_id || !supabase) return undefined;
+    if (!isGm || activeTab !== "music" || !playback?.is_playing || !playback?.track_id || !supabase) return undefined;
     const syncTimer = window.setInterval(async () => {
       const position = audioRef.current?.currentTime;
       if (!Number.isFinite(position)) return;
@@ -110,7 +110,7 @@ export default function CampaignDetailPage() {
       if (syncError) setError(syncError.message);
     }, 12_000);
     return () => window.clearInterval(syncTimer);
-  }, [isGm, playback?.is_playing, playback?.track_id, campaignId, user?.id]);
+  }, [isGm, activeTab, playback?.is_playing, playback?.track_id, campaignId, user?.id]);
 
   async function createSession() {
     if (!supabase || !isGm || creatingSession) return;
