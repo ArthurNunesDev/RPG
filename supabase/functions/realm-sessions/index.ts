@@ -100,7 +100,7 @@ Deno.serve(async (request: Request) => {
   }
 
   const action = typeof payload.action === "string" ? payload.action : "";
-  if (!["join", "info", "active", "leave"].includes(action)) {
+  if (!["join", "create", "campaign", "info", "active", "leave"].includes(action)) {
     return respond({ error: "Ação de sessão inválida." }, 400);
   }
 
@@ -159,6 +159,47 @@ Deno.serve(async (request: Request) => {
     });
     if (infoError) return respond({ error: "Você entrou, mas não foi possível carregar os dados da sessão." }, 500);
     return respond({ joined: true, session });
+  }
+
+  if (action === "create") {
+    const campaignId = typeof payload.campaignId === "string" ? payload.campaignId : "";
+    if (!/^[0-9a-f-]{36}$/i.test(campaignId)) return respond({ error: "Campanha inválida." }, 400);
+
+    const { data: sessionId, error: createError } = await admin.rpc("create_realm_session", {
+      p_user_id: userId,
+      p_campaign_id: campaignId,
+      p_pin: generatePin(),
+    });
+    if (createError) {
+      const message = errorMessage(createError);
+      if (message.includes("CAMPAIGN_GM_REQUIRED")) return respond({ error: "Somente o mestre desta campanha pode criar a sessão." }, 403);
+      if (message.includes("CAMPAIGN_SESSION_ACTIVE")) return respond({ error: "Esta campanha já possui uma sessão com PIN ativo." }, 409);
+      return respond({ error: "Não foi possível criar a sessão da campanha." }, 500);
+    }
+
+    const { data: session, error: infoError } = await admin.rpc("get_realm_session", {
+      p_user_id: userId,
+      p_session_id: sessionId,
+    });
+    if (infoError) return respond({ error: "A sessão foi criada, mas não foi possível carregar seus dados." }, 500);
+    return respond({ created: true, session });
+  }
+
+  if (action === "campaign" || action === "active") {
+    const campaignId = typeof payload.campaignId === "string" ? payload.campaignId : "";
+    if (!/^[0-9a-f-]{36}$/i.test(campaignId)) return respond({ error: "Campanha inválida." }, 400);
+    const rpcName = action === "campaign" ? "get_campaign_realm_session" : "get_active_realm_campaign_session";
+    const { data, error } = await admin.rpc(rpcName, {
+      p_user_id: userId,
+      p_campaign_id: campaignId,
+    });
+    if (error) {
+      const message = errorMessage(error);
+      if (message.includes("CAMPAIGN_GM_REQUIRED") || message.includes("CAMPAIGN_MEMBER_REQUIRED")) return respond({ error: "Você não participa desta campanha." }, 403);
+      if (message.includes("CAMPAIGN_SESSION_NOT_CREATED")) return respond({ error: "Esta campanha ainda não possui uma sessão. O mestre precisa criá-la." }, 404);
+      return respond({ error: "Não foi possível carregar a sessão desta campanha." }, 500);
+    }
+    return respond({ session: data });
   }
 
   const sessionId = typeof payload.sessionId === "string" ? payload.sessionId : "";
