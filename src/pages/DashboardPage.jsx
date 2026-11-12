@@ -4,10 +4,8 @@ import {
   Compass,
   Dice5,
   Plus,
-  Shield,
   Sparkles,
   Swords,
-  Users,
   UserRound,
 } from "lucide-react";
 import { Link } from "react-router-dom";
