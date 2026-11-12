@@ -13,6 +13,7 @@ Plataforma multiplayer para criar campanhas e jogar diferentes sistemas de RPG c
 ## Requisitos
 
 - Node.js compatível com Vite 8
+- Node.js 20.19+ (ou 22.12+)
 - npm
 - Projeto Supabase exclusivo para o REALMS
 
