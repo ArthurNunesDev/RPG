@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, Compass, Dice5, LayoutDashboard, Library, LogOut, Menu, Settings, Sparkles, Swords, Users, UserRound, X, Crown, Eye } from "lucide-react";
 import { isSupabaseConfigured } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
-const pageNames = { "/": "Visão geral", "/campaigns": "Campanhas", "/characters": "Personagens", "/tabletop": "Mesa virtual", "/dice": "Rolagem de dados", "/library": "Biblioteca", "/friends": "Amigos", "/settings": "Configurações" };
+const pageNames = { "/": "Visão geral", "/campaigns": "Campanhas", "/characters": "Personagens", "/tabletop": "Mesa virtual", "/dice": "Rolagem de dados", "/library": "Biblioteca", "/friends": "Amigos", "/settings": "Configurações", "/account": "Minha conta" };
 const roleLabels = { gm: "Mestre", player: "Jogador", observer: "Observador" };
 const roleIcons = { gm: Crown, player: Swords, observer: Eye };
 
@@ -66,7 +66,7 @@ export default function AppLayout() {
           <div className="topbar-actions">
             <div className={`connection-pill ${isSupabaseConfigured ? "connection-pill--ready" : ""}`} title={isSupabaseConfigured ? "Supabase configurado" : "Configure as variáveis do Supabase."}><span className="connection-dot" />{isSupabaseConfigured ? "Conectado" : "Modo de configuração"}</div>
             <div className="topbar-divider" />
-            <div className="account-chip" title={user?.email ?? ""}><span className="account-role"><RoleIcon size={13} />{roleLabels[role]}</span><span className="account-name">{profile?.display_name || user?.email || "Aventureiro"}</span></div>
+            <Link to="/account" className="account-chip" title="Abrir minha conta" aria-label="Abrir minha conta"><span className="account-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : <UserRound size={17} />}</span><span className="account-chip-copy"><span className="account-role"><RoleIcon size={13} />{roleLabels[role]}</span><span className="account-name">@{profile?.username || "aventureiro"}</span></span></Link>
             <button className="icon-button" type="button" onClick={handleSignOut} disabled={signingOut} aria-label="Sair da conta" title="Sair"><LogOut size={17} /></button>
           </div>
         </header>
