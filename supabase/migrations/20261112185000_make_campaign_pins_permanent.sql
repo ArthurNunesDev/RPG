@@ -140,7 +140,7 @@ with check (
 create or replace function public.get_active_realm_campaign_session(p_user_id uuid, p_campaign_id uuid)
 returns jsonb
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
