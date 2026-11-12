@@ -109,10 +109,12 @@ export default function SessionPage() {
           const trackStatus = await channel.track({
             userId: user.id,
             displayName: profile?.display_name ?? "Aventureiro",
-            role: membership?.role ?? "player",
+            role: membership?.role ?? (profile?.preferred_role === "observer" ? "observer" : "player"),
             joinedAt: new Date().toISOString(),
           });
           if (trackStatus !== "ok" && active) setError("A conexão em tempo real não foi estabelecida.");
+        } else if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && active) {
+          setError("A conexão em tempo real foi interrompida. Atualize a página para reconectar.");
         }
       });
 
