@@ -65,7 +65,7 @@ export default function SessionPage() {
   useEffect(() => { loadSession(); }, [loadSession]);
 
   useEffect(() => {
-    if (!supabase || !user?.id || !sessionId || !session) return undefined;
+    if (!supabase || !user?.id || !sessionId) return undefined;
 
     let active = true;
     const channel = supabase.channel(`realm-session:${sessionId}`, {
@@ -120,7 +120,7 @@ export default function SessionPage() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [sessionId, session, user?.id, profile?.display_name, membership?.role]);
+  }, [sessionId, user?.id, profile?.display_name, membership?.role]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
