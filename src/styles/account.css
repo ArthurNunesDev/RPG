@@ -34,3 +34,12 @@
 .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; clip-path:inset(50%); }
 @media(max-width:850px) { .account-grid { grid-template-columns:1fr; } .account-security-column { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .account-email-note { grid-column:1/-1; } }
 @media(max-width:580px) { .account-card { padding:16px; } .account-security-column { display:flex; } .account-role-options { grid-template-columns:1fr; } .avatar-preview { width:68px; height:68px; } }
+
+.account-chip { display:flex; align-items:center; gap:9px; padding:4px 8px 4px 4px; border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.025); transition:border-color 150ms ease,background 150ms ease; }
+.account-chip:hover { border-color:rgba(201,166,107,.35); background:var(--gold-soft); }
+.account-avatar { display:grid; width:34px; height:34px; flex:0 0 auto; overflow:hidden; place-items:center; border:1px solid rgba(201,166,107,.25); border-radius:50%; color:var(--gold-bright); background:#25232b; }
+.account-avatar img { width:100%; height:100%; object-fit:cover; }
+.account-chip-copy { display:flex; min-width:0; flex-direction:column; gap:3px; }
+.account-chip .account-role { display:flex; align-items:center; gap:5px; color:#88828a; font-size:9px; }
+.account-chip .account-name { max-width:130px; overflow:hidden; color:#e2dbcf; font-size:11px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
+@media(max-width:700px) { .account-chip { padding:2px; border:0; background:transparent; } .account-chip-copy { display:none; } .account-avatar { width:32px; height:32px; } }
