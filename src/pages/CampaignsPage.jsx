@@ -380,10 +380,10 @@ export default function CampaignsPage() {
                     <span><Users size={13} />{memberCount} {memberCount === 1 ? "participante" : "participantes"}</span>
                     <span><CalendarDays size={13} />{formatDate(campaign.updated_at)}</span>
                   </div>
-                  {ownCampaign && <div className="campaign-card-actions">
-                    <button className="button button-secondary" type="button" onClick={() => handleOpenSession(campaign)} disabled={Boolean(sessionActionId)}><Play size={14} />{sessionActionId === campaign.id ? "Abrindo..." : "Abrir sessão"}</button>
-                    <button className="button button-secondary" type="button" onClick={() => openEditForm(campaign)}><Pencil size={14} /> Editar</button>
-                    <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id || Boolean(sessionActionId)} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>
+                  {(ownCampaign || role === "gm") && <div className="campaign-card-actions">
+                    {role === "gm" && <button className="button button-secondary" type="button" onClick={() => handleOpenSession(campaign)} disabled={Boolean(sessionActionId)}><Play size={14} />{sessionActionId === campaign.id ? "Abrindo..." : "Abrir sessão"}</button>}
+                    {ownCampaign && <button className="button button-secondary" type="button" onClick={() => openEditForm(campaign)}><Pencil size={14} /> Editar</button>}
+                    {ownCampaign && <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id || Boolean(sessionActionId)} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>}
                   </div>}
                   {!ownCampaign && role === "observer" && <div className="campaign-observer-note"><Eye size={13} /> Acesso de observador</div>}
                 </div>
