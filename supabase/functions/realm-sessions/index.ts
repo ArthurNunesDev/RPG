@@ -100,46 +100,10 @@ Deno.serve(async (request: Request) => {
   }
 
   const action = typeof payload.action === "string" ? payload.action : "";
-  if (!["create", "join", "info", "active", "leave", "end"].includes(action)) {
+  if (!["join", "info", "active", "leave"].includes(action)) {
     return respond({ error: "Ação de sessão inválida." }, 400);
   }
 
-  if (action === "create") {
-    const campaignId = typeof payload.campaignId === "string" ? payload.campaignId : "";
-    if (!/^[0-9a-f-]{36}$/i.test(campaignId)) return respond({ error: "Campanha inválida." }, 400);
-
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      let pin: string;
-      try {
-        pin = generatePin();
-      } catch {
-        return respond({ error: "Não foi possível gerar um PIN seguro." }, 503);
-      }
-
-      const { data, error } = await admin.rpc("create_realm_session", {
-        p_user_id: userId,
-        p_campaign_id: campaignId,
-        p_pin: pin,
-      });
-      if (!error) {
-        const { data: session, error: infoError } = await admin.rpc("get_realm_session", {
-          p_user_id: userId,
-          p_session_id: data,
-        });
-        if (infoError) return respond({ error: "Sessão criada, mas não foi possível carregar seus dados." }, 500);
-        return respond({ created: true, session });
-      }
-
-      const message = errorMessage(error);
-      if (message.includes("CAMPAIGN_SESSION_ACTIVE")) {
-        return respond({ error: "Esta campanha já possui uma sessão ativa." }, 409);
-      }
-      if (message.includes("CAMPAIGN_GM_REQUIRED")) return respond({ error: "Somente o mestre desta campanha pode abrir uma sessão." }, 403);
-      if (message.includes("SESSION_PIN_TAKEN") || (error as { code?: string }).code === "23505") continue;
-      return respond({ error: "Não foi possível criar a sessão." }, 500);
-    }
-    return respond({ error: "Não foi possível gerar um PIN exclusivo. Tente novamente." }, 503);
-  }
 
   if (action === "join") {
     const pin = typeof payload.pin === "string" ? payload.pin.trim().toUpperCase() : "";
@@ -207,7 +171,11 @@ Deno.serve(async (request: Request) => {
       p_user_id: userId,
       p_campaign_id: campaignId,
     });
-    if (error) return respond({ error: errorMessage(error).includes("CAMPAIGN_GM_REQUIRED") ? "Somente o mestre pode consultar a sessão ativa." : "Não foi possível consultar a sessão." }, 403);
+    if (error) {
+      const message = errorMessage(error);
+      if (message.includes("CAMPAIGN_GM_REQUIRED")) return respond({ error: "Somente o mestre desta campanha pode abrir a mesa." }, 403);
+      return respond({ error: "Não foi possível carregar o PIN permanente desta campanha." }, 404);
+    }
     return respond({ session: data });
   }
 
@@ -236,11 +204,5 @@ Deno.serve(async (request: Request) => {
     return respond({ left: true });
   }
 
-  const { data, error } = await admin.rpc("end_realm_session", {
-    p_user_id: userId,
-    p_session_id: sessionId,
-  });
-  if (error) return respond({ error: "Não foi possível encerrar a sessão." }, 500);
-  if (data !== true) return respond({ error: "Somente quem abriu a sessão pode encerrá-la." }, 403);
-  return respond({ ended: true });
+  return respond({ error: "A mesa permanece ativa enquanto a campanha existir." }, 410);
 });
