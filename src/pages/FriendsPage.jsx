@@ -71,24 +71,6 @@ export default function FriendsPage() {
   useEffect(() => {
     if (!supabase || !user?.id) return undefined;
     let alive = true;
-    let activityTimeout;
-    let heartbeat;
-    const setStatus = async (status) => {
-      if (!alive) return;
-      const { error: presenceError } = await supabase.rpc("set_my_presence", { p_status: status });
-      if (presenceError && alive) setError(presenceError.message);
-    };
-    const updateActivity = () => {
-      if (document.visibilityState !== "visible") {
-        window.clearTimeout(activityTimeout);
-        setStatus("inactive");
-        return;
-      }
-      window.clearTimeout(activityTimeout);
-      setStatus("online");
-      activityTimeout = window.setTimeout(() => setStatus("inactive"), 2 * 60_000);
-    };
-    const onVisibility = () => document.visibilityState === "visible" ? updateActivity() : setStatus("inactive");
     const channel = supabase.channel(`friends-presence:${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "user_presence" }, (payload) => {
         if (!alive || !payload.new?.user_id) return;
@@ -96,23 +78,7 @@ export default function FriendsPage() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => { if (alive) load(); })
       .subscribe();
-    updateActivity();
-    heartbeat = window.setInterval(() => {
-      if (document.visibilityState === "visible") setStatus("online");
-    }, 45_000);
-    window.addEventListener("pointerdown", updateActivity);
-    window.addEventListener("keydown", updateActivity);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      alive = false;
-      window.clearTimeout(activityTimeout);
-      window.clearInterval(heartbeat);
-      window.removeEventListener("pointerdown", updateActivity);
-      window.removeEventListener("keydown", updateActivity);
-      document.removeEventListener("visibilitychange", onVisibility);
-      void supabase.rpc("set_my_presence", { p_status: "offline" });
-      supabase.removeChannel(channel);
-    };
+    return () => { alive = false; supabase.removeChannel(channel); };
   }, [user?.id, load]);
 
   async function sendRequest(event) {
