@@ -3,7 +3,6 @@ import {
   BookOpen,
   CheckCircle2,
   Eye,
-  Filter,
   Pencil,
   Plus,
   Search,
@@ -33,7 +32,7 @@ const npcRoleLabels = { ally: "Aliado", enemy: "Inimigo", neutral: "Neutro" };
 const statusLabels = { active: "Ativo", retired: "Aposentado", deceased: "Morto" };
 
 export default function CharactersPage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [characters, setCharacters] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [systems, setSystems] = useState([]);
@@ -94,7 +93,6 @@ export default function CharactersPage() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const selectedCampaign = campaigns.find((campaign) => campaign.id === form.campaignId) ?? null;
-  const isGmInSelectedCampaign = selectedCampaign?.role === "gm";
   const availableSystems = useMemo(() => {
     if (selectedCampaign) return systems.filter((system) => system.id === selectedCampaign.game_system_id);
     return systems.filter((system) => system.is_official || system.created_by === user?.id);
@@ -291,7 +289,7 @@ export default function CharactersPage() {
             <span>Campanha <small>(opcional para personagens)</small></span>
             <select value={form.campaignId} onChange={(event) => changeCampaign(event.target.value)} disabled={Boolean(editingId && form.characterType === "npc")}>
               <option value="">Sem campanha</option>
-              {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.title}{campaign.role === "gm" ? " · Mestre" : " · Jogador"}</option>)}
+              {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id} disabled={form.characterType === "npc" ? campaign.role !== "gm" : campaign.role === "observer"}>{campaign.title}{campaign.role === "gm" ? " · Mestre" : campaign.role === "observer" ? " · Observador" : " · Jogador"}</option>)}
             </select>
           </label>
           {form.campaignId && <p className="character-system-hint">Sistema da campanha: {systems.find((system) => system.id === form.gameSystemId)?.name ?? "indisponível"}</p>}
