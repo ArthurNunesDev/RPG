@@ -108,7 +108,7 @@ export default function SessionPage() {
         if (status === "SUBSCRIBED" && active) {
           const trackStatus = await channel.track({
             userId: user.id,
-            displayName: profile?.display_name ?? "Aventureiro",
+            displayName: profile?.username ? `@${profile.username}` : "Aventureiro",
             role: membership?.role ?? (profile?.preferred_role === "observer" ? "observer" : "player"),
             joinedAt: new Date().toISOString(),
           });
@@ -122,7 +122,7 @@ export default function SessionPage() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [sessionId, user?.id, profile?.display_name, profile?.preferred_role, membership?.role]);
+  }, [sessionId, user?.id, profile?.username, profile?.preferred_role, membership?.role]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
