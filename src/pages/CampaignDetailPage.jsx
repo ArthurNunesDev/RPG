@@ -90,7 +90,8 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
+    if (!audio) return;
+    if (!audioUrl) { audio.pause(); audio.removeAttribute("src"); audio.load(); return; }
     if (playback?.is_playing) {
       if (Math.abs(audio.currentTime - Number(playback.position_seconds ?? 0)) > 3) audio.currentTime = Number(playback.position_seconds ?? 0);
       void audio.play().catch(() => setError("O navegador bloqueou a reprodução automática. Use o botão de reprodução."));
