@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Dice1, Dice5, Dices, RotateCcw, Sparkles, Users, UserRound } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -75,10 +75,6 @@ export default function DicePage() {
     return () => { active = false; };
   }, [user?.id]);
 
-  const selectedCampaign = useMemo(
-    () => campaigns.find((item) => item.campaign_id === campaignId),
-    [campaigns, campaignId],
-  );
 
   const loadHistory = useCallback(async () => {
     if (!supabase || !user?.id) return;
