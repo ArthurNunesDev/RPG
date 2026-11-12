@@ -73,7 +73,7 @@ Nunca coloque `service_role`, senhas ou segredos em variáveis `VITE_*`.
 - Biblioteca com sistemas oficiais e sistemas personalizados.
 - CRUD de campanhas, com sistema de RPG vinculado.
 - Personagens de jogadores e NPCs do mestre, classificados como aliados, inimigos ou neutros.
-- Sessões de campanha com PIN de 8 caracteres, entrada de participantes e retomada de sessão ativa.
+- Sessões permanentes por campanha: PIN único de 8 caracteres gerado ao criar a campanha, válido até sua exclusão, com entrada de participantes por código.
 - Papéis de mestre, jogador e observador aplicados por campanha.
 - Chat em tempo real da sessão, com observadores em modo somente leitura.
 - Políticas RLS para proteger dados e ações por usuário, campanha e sessão.
@@ -87,7 +87,7 @@ O schema inclui:
 - Sistemas de RPG com schema de ficha e regras em JSONB.
 - Campanhas e participantes com papéis de mestre, jogador ou observador.
 - Personagens de jogadores e NPCs controlados pelo mestre.
-- Sessões persistentes associadas às campanhas, com PIN privado.
+- Uma sessão permanente por campanha, com PIN privado e único; sair da mesa não encerra nem invalida o código.
 - Mensagens isoladas por sessão.
 
 As tabelas privadas de sessão não são acessíveis diretamente pelo cliente. A Edge Function realiza as operações privilegiadas após validar o JWT. As mensagens usam RLS e Realtime para permitir colaboração dentro da sessão.
