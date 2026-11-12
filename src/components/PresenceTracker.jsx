@@ -23,7 +23,7 @@ export default function PresenceTracker() {
         return;
       }
       window.clearTimeout(inactivityTimer);
-      void update("online");
+      if (currentStatus !== "online") void update("online");
       inactivityTimer = window.setTimeout(() => void update("inactive"), 120_000);
     };
     const visibilityChanged = () => {
@@ -35,6 +35,9 @@ export default function PresenceTracker() {
       if (document.visibilityState === "visible") void update(currentStatus);
     }, 45_000);
     window.addEventListener("pointerdown", markActive, { passive: true });
+    window.addEventListener("pointermove", markActive, { passive: true });
+    window.addEventListener("wheel", markActive, { passive: true });
+    window.addEventListener("touchstart", markActive, { passive: true });
     window.addEventListener("keydown", markActive);
     window.addEventListener("focus", markActive);
     document.addEventListener("visibilitychange", visibilityChanged);
@@ -43,6 +46,9 @@ export default function PresenceTracker() {
       window.clearTimeout(inactivityTimer);
       window.clearInterval(heartbeat);
       window.removeEventListener("pointerdown", markActive);
+      window.removeEventListener("pointermove", markActive);
+      window.removeEventListener("wheel", markActive);
+      window.removeEventListener("touchstart", markActive);
       window.removeEventListener("keydown", markActive);
       window.removeEventListener("focus", markActive);
       document.removeEventListener("visibilitychange", visibilityChanged);
