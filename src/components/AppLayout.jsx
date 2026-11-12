@@ -4,6 +4,7 @@ import { ChevronLeft, LayoutDashboard, Library, LogOut, Menu, Settings, Sparkles
 import { isSupabaseConfigured } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import "../styles/account.css";
+import PresenceTracker from "./PresenceTracker.jsx";
 
 const pageNames = { "/": "Visão geral", "/campaigns": "Campanhas", "/characters": "Personagens", "/library": "Biblioteca", "/friends": "Amigos", "/settings": "Configurações", "/account": "Minha conta" };
 const roleLabels = { gm: "Mestre", player: "Jogador", observer: "Observador" };
@@ -37,7 +38,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="app-shell">
+    <><PresenceTracker /><div className="app-shell">
       {mobileOpen && <button className="sidebar-backdrop" type="button" aria-label="Fechar menu" onClick={closeMobileMenu} />}
       <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`}>
         <div className="brand">
@@ -72,6 +73,6 @@ export default function AppLayout() {
         </header>
         <div className="page-content"><Outlet /></div>
       </main>
-    </div>
+    </div></>
   );
 }
