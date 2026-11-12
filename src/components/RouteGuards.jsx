@@ -9,8 +9,7 @@ export function RequireAuth() {
   const { configured, loading, user } = useAuth();
   const location = useLocation();
   if (loading) return <LoadingScreen />;
-  if (!configured) return <Navigate to="/auth" replace state={{ from: location }} />;
-  if (!user) return <Navigate to="/auth" replace state={{ from: location }} />;
+  if (!configured || !user) return <Navigate to="/auth" replace state={{ from: location }} />;
   return <Outlet />;
 }
 
@@ -24,7 +23,9 @@ export function RequireRole() {
 
 export function PublicOnly() {
   const { loading, user, profile } = useAuth();
+  const location = useLocation();
+  const isPasswordRecovery = location.hash.includes("type=recovery");
   if (loading) return <LoadingScreen />;
-  if (user) return <Navigate to={profile?.preferred_role ? "/" : "/choose-role"} replace />;
+  if (user && !isPasswordRecovery) return <Navigate to={profile?.preferred_role ? "/" : "/choose-role"} replace />;
   return <Outlet />;
 }
