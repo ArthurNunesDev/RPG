@@ -346,8 +346,23 @@ create policy "users create their own characters"
   with check (
     owner_id = (select auth.uid())
     and (
-      campaign_id is null
-      or (select private.is_campaign_member(campaign_id))
+      (
+        campaign_id is null
+        and exists (
+          select 1 from public.game_systems gs
+          where gs.id = game_system_id
+            and (gs.is_official or gs.created_by = (select auth.uid()))
+        )
+      )
+      or (
+        campaign_id is not null
+        and (select private.is_campaign_member(campaign_id))
+        and exists (
+          select 1 from public.campaigns c
+          where c.id = campaign_id
+            and c.game_system_id = game_system_id
+        )
+      )
     )
   );
 
@@ -362,10 +377,31 @@ create policy "owners and game masters update characters"
     )
   )
   with check (
-    owner_id = (select auth.uid())
-    or (
-      campaign_id is not null
-      and (select private.is_campaign_gm(campaign_id))
+    (
+      owner_id = (select auth.uid())
+      or (
+        campaign_id is not null
+        and (select private.is_campaign_gm(campaign_id))
+      )
+    )
+    and (
+      (
+        campaign_id is null
+        and exists (
+          select 1 from public.game_systems gs
+          where gs.id = game_system_id
+            and (gs.is_official or gs.created_by = (select auth.uid()))
+        )
+      )
+      or (
+        campaign_id is not null
+        and (select private.is_campaign_member(campaign_id))
+        and exists (
+          select 1 from public.campaigns c
+          where c.id = campaign_id
+            and c.game_system_id = game_system_id
+        )
+      )
     )
   );
 
