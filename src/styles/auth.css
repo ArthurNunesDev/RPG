@@ -1,0 +1,59 @@
+/* Authentication and personal role selection */
+.auth-screen,.role-screen{position:relative;min-height:100vh;overflow:hidden;background:radial-gradient(ellipse at 50% 0%,rgba(111,83,124,.17),transparent 42rem),var(--bg)}
+.auth-screen{display:grid;place-items:center;padding:32px 18px}
+.auth-backdrop{position:absolute;inset:0;pointer-events:none;background:linear-gradient(135deg,transparent 45%,rgba(201,166,107,.035))}
+.auth-card{position:relative;width:min(100%,440px);padding:38px;border:1px solid var(--line-strong);border-radius:14px;background:linear-gradient(145deg,rgba(29,30,39,.98),rgba(20,21,29,.98));box-shadow:var(--shadow)}
+.auth-brand{display:inline-flex;align-items:center;gap:12px;color:var(--text)}
+.auth-brand-mark{display:grid;width:45px;height:45px;place-items:center;border:1px solid rgba(201,166,107,.32);border-radius:11px;color:var(--gold);background:var(--gold-soft)}
+.auth-brand strong{display:block;font-family:"Marcellus",Georgia,serif;font-size:20px;font-weight:400;letter-spacing:.14em}
+.auth-brand small{display:block;margin-top:3px;color:var(--muted);font-size:8px;letter-spacing:.16em}
+.auth-heading{margin:34px 0 25px}
+.auth-heading .eyebrow{margin-bottom:9px}
+.auth-heading h1,.role-content h1{margin:0;color:#eee7da;font-family:"Marcellus",Georgia,serif;font-size:31px;font-weight:400}
+.auth-heading>p:last-child{margin:9px 0 0;color:var(--muted);font-size:12px;line-height:1.65}
+.auth-form{display:flex;flex-direction:column;gap:16px}
+.auth-field{display:flex;flex-direction:column;gap:8px;color:#c9c2b7;font-size:11px;font-weight:600}
+.auth-input-wrap{display:flex;min-height:47px;align-items:center;gap:10px;padding:0 13px;border:1px solid var(--line-strong);border-radius:7px;color:#8f8990;background:rgba(255,255,255,.025)}
+.auth-input-wrap:focus-within{border-color:rgba(201,166,107,.65);box-shadow:0 0 0 3px rgba(201,166,107,.08)}
+.auth-input-wrap input{width:100%;min-width:0;border:0;outline:0;color:var(--text);background:transparent;font-size:12px}
+.auth-input-wrap input::placeholder{color:#68656d}
+.auth-visibility{display:grid;flex:0 0 auto;place-items:center;border:0;color:#928b93;background:transparent}
+.auth-submit{width:100%;min-height:45px;margin-top:3px}
+.auth-switch{display:flex;justify-content:center;gap:5px;margin-top:22px;color:var(--muted);font-size:11px}
+.auth-text-button{display:inline-flex;align-items:center;gap:5px;padding:0;border:0;color:var(--gold);background:transparent;font-size:11px;font-weight:600}
+.auth-text-button:hover{color:var(--gold-bright)}
+.auth-forgot{align-self:flex-end;margin-top:-6px}
+.auth-error,.auth-alert{margin:0;padding:10px 12px;border:1px solid rgba(215,131,131,.22);border-radius:6px;color:#e29b9b;background:rgba(215,131,131,.07);font-size:11px;line-height:1.5}
+.auth-notice{margin:0;padding:10px 12px;border:1px solid rgba(126,170,136,.22);border-radius:6px;color:#a8c9ae;background:rgba(126,170,136,.07);font-size:11px;line-height:1.5}
+.auth-footnote{position:absolute;bottom:17px;color:#5f5b64;font-size:8px;letter-spacing:.2em}
+.auth-loading{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--muted);font-size:12px}
+.loading-mark{color:var(--gold);font-size:30px}
+.role-screen{padding:26px clamp(18px,5vw,70px) 45px}
+.role-topbar{display:flex;align-items:center;justify-content:space-between;max-width:1320px;margin:0 auto}
+.role-content{width:min(100%,1160px);margin:clamp(45px,8vh,90px) auto 0;text-align:center}
+.role-content>.eyebrow{margin-bottom:10px}
+.role-content h1{font-size:clamp(32px,4vw,43px)}
+.role-lead{max-width:680px;margin:13px auto 35px;color:var(--muted);font-size:13px;line-height:1.75}
+.role-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;text-align:left}
+.role-card{position:relative;display:flex;min-height:330px;flex-direction:column;align-items:flex-start;padding:25px 23px;border:1px solid var(--line-strong);border-radius:11px;color:var(--text);background:linear-gradient(145deg,rgba(31,32,42,.97),rgba(23,24,32,.97));text-align:left;transition:border-color .16s,transform .16s,background .16s}
+.role-card:hover{transform:translateY(-3px);border-color:rgba(201,166,107,.45)}
+.role-card--selected{border-color:var(--gold);background:linear-gradient(145deg,rgba(55,46,37,.65),rgba(26,26,34,.98));box-shadow:0 0 0 1px rgba(201,166,107,.18),0 15px 40px rgba(0,0,0,.15)}
+.role-card-icon{display:grid;width:48px;height:48px;place-items:center;margin-bottom:20px;border:1px solid currentColor;border-radius:10px}
+.role-card--gold .role-card-icon{color:var(--gold);background:var(--gold-soft)}
+.role-card--blue .role-card-icon{color:var(--blue);background:rgba(123,158,196,.1)}
+.role-card--violet .role-card-icon{color:var(--violet);background:rgba(155,130,200,.1)}
+.role-card-title{font-family:"Marcellus",Georgia,serif;font-size:23px}
+.role-card-subtitle{margin-top:4px;color:var(--gold);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.role-card-description{margin-top:13px;color:#aaa4a5;font-size:11px;line-height:1.7}
+.role-feature-list{display:flex;flex-direction:column;gap:9px;margin-top:20px;color:#aaa4a5;font-size:10px}
+.role-feature-list>span{display:flex;align-items:center;gap:7px}
+.role-feature-list svg{flex:0 0 auto;color:var(--green)}
+.role-radio{position:absolute;top:19px;right:19px;display:grid;width:21px;height:21px;place-items:center;border:1px solid var(--line-strong);border-radius:50%;color:#17130e;font-size:12px}
+.role-card--selected .role-radio{border-color:var(--gold);background:var(--gold)}
+.role-confirm{min-width:230px;min-height:44px;justify-content:center;margin-top:28px}
+.role-footnote{margin-top:13px;color:#77727d;font-size:10px}
+.account-chip{display:flex;flex-direction:column;gap:2px;max-width:180px}
+.account-role{display:flex;align-items:center;gap:5px;color:var(--gold);font-size:9px;font-weight:700}
+.account-name{overflow:hidden;color:#c5beb3;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:850px){.role-grid{grid-template-columns:1fr;max-width:560px;margin:0 auto}.role-card{min-height:0}.role-content{margin-top:48px}.role-lead{margin-bottom:24px}}
+@media(max-width:520px){.auth-card{padding:27px 21px}.auth-heading{margin-top:28px}.auth-heading h1{font-size:27px}.role-screen{padding:20px 16px 35px}.role-topbar .auth-brand strong{font-size:17px}.role-topbar .auth-brand-mark{width:39px;height:39px}.role-content{margin-top:42px}.role-card{padding:20px}.topbar-actions{gap:8px}.account-chip{max-width:105px}.connection-pill{display:none}}
