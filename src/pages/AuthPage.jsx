@@ -52,7 +52,7 @@ export default function AuthPage() {
         if (authError) throw authError;
         setNotice("Senha atualizada. Você já pode continuar usando o REALMS.");
         setPassword("");
-        setMode("login");
+        navigate("/", { replace: true });
       } else if (mode === "signup") {
         const { data, error: authError } = await supabase.auth.signUp({
           email: email.trim(),
