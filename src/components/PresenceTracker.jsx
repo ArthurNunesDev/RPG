@@ -32,7 +32,7 @@ export default function PresenceTracker() {
     };
     markActive();
     heartbeat = window.setInterval(() => {
-      if (document.visibilityState === "visible") void update(currentStatus);
+      void update(currentStatus);
     }, 45_000);
     window.addEventListener("pointerdown", markActive, { passive: true });
     window.addEventListener("pointermove", markActive, { passive: true });
