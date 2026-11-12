@@ -181,7 +181,7 @@ export default function DicePage() {
             <p>{result ? `${result.formula} = ${result.total}` : "Aguardando sua rolagem"}</p>
           </div>
           <div className="dice-options" role="group" aria-label="Selecionar tipo de dado">
-            {diceOptions.map((option) => <button className={`dice-option ${sides === option ? "dice-option--active" : ""}`} type="button" key={option} onClick={() => setSides(option)} aria-pressed={sides === option}>d{option}</button>)}
+            {diceOptions.map((option) => <button className={`dice-option ${sides === option ? "dice-option--active" : ""}`} type="button" key={option} onClick={() => { setSides(option); if (option !== 20) setMode("normal"); }} aria-pressed={sides === option}>d{option}</button>)}
           </div>
           <div className="dice-input-grid">
             <label><span>Quantidade</span><input type="number" min="1" max="20" value={quantity} disabled={mode !== "normal"} onChange={(event) => setQuantity(Math.min(20, Math.max(1, Number(event.target.value) || 1)))} /></label>
