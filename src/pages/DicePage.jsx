@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dice1, Dice5, Dices, RotateCcw, Sparkles } from "lucide-react";
+import { Dice1, Dices, RotateCcw, Sparkles } from "lucide-react";
 
 const diceOptions = [4, 6, 8, 10, 12, 20, 100];
 
