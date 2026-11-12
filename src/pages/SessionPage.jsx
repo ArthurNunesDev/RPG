@@ -85,17 +85,34 @@ export default function SessionPage() {
       })
       .on("presence", { event: "sync" }, () => {
         if (!active) return;
-        const ids = Object.values(channel.presenceState()).flat().map((entry) => entry.userId).filter(Boolean);
+        const entries = Object.values(channel.presenceState()).flat();
+        const ids = entries.map((entry) => entry.userId).filter(Boolean);
         setOnlineIds([...new Set(ids)]);
+        setSession((current) => {
+          if (!current) return current;
+          const knownMembers = new Map((current.members ?? []).map((member) => [member.userId, member]));
+          for (const entry of entries) {
+            if (entry.userId && !knownMembers.has(entry.userId)) {
+              knownMembers.set(entry.userId, {
+                userId: entry.userId,
+                displayName: entry.displayName ?? "Aventureiro",
+                role: entry.role === "observer" ? "observer" : "player",
+                joinedAt: entry.joinedAt ?? new Date().toISOString(),
+              });
+            }
+          }
+          return { ...current, members: [...knownMembers.values()] };
+        });
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED" && active) {
-          const { error: trackError } = await channel.track({
+          const trackStatus = await channel.track({
             userId: user.id,
             displayName: profile?.display_name ?? "Aventureiro",
+            role: membership?.role ?? "player",
             joinedAt: new Date().toISOString(),
           });
-          if (trackError && active) setError("A conexão em tempo real não foi estabelecida.");
+          if (trackStatus !== "ok" && active) setError("A conexão em tempo real não foi estabelecida.");
         }
       });
 
@@ -103,7 +120,7 @@ export default function SessionPage() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [sessionId, session, user?.id, profile?.display_name]);
+  }, [sessionId, session, user?.id, profile?.display_name, membership?.role]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
