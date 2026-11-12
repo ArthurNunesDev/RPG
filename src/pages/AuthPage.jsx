@@ -16,7 +16,7 @@ export default function AuthPage() {
   const { configured } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState(location.hash.includes("type=recovery") ? "update" : "login");
 
   useEffect(() => {
     if (!supabase) return undefined;
@@ -97,7 +97,7 @@ export default function AuthPage() {
           <span><strong>REALMS</strong><small>YOUR WORLD. YOUR STORY.</small></span>
         </Link>
         <div className="auth-heading">
-          <p className="eyebrow">{isReset ? "RECUPERAR ACESSO" : isSignup ? "SUA JORNADA COMEÇA" : "BEM-VINDO DE VOLTA"}</p>
+          <p className="eyebrow">{isReset ? "RECUPERAR ACESSO" : isUpdate ? "SEGURANÇA DA CONTA" : isSignup ? "SUA JORNADA COMEÇA" : "BEM-VINDO DE VOLTA"}</p>
           <h1>{isReset ? "Recupere sua senha" : isUpdate ? "Crie uma nova senha" : isSignup ? "Crie sua conta" : "Entre no seu reino"}</h1>
           <p>{isReset ? "Informe seu e-mail para receber as instruções." : isUpdate ? "Escolha uma senha segura para continuar." : isSignup ? "Prepare-se para construir histórias memoráveis." : "A próxima aventura está esperando por você."}</p>
         </div>
@@ -110,10 +110,10 @@ export default function AuthPage() {
               <span className="auth-input-wrap"><UserRound size={17} /><input autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={50} required placeholder="Como quer ser chamado?" /></span>
             </label>
           )}
-          <label className="auth-field">
+          {!isUpdate && <label className="auth-field">
             <span>E-mail</span>
             <span className="auth-input-wrap"><Mail size={17} /><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="voce@exemplo.com" /></span>
-          </label>
+          </label>}
           {!isReset && (
             <label className="auth-field">
               <span>Senha</span>
