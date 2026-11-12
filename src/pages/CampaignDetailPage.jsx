@@ -117,6 +117,7 @@ export default function CampaignDetailPage() {
 
   async function uploadMap(event) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     const file = event.currentTarget.elements.namedItem("mapFile")?.files?.[0];
     if (!file || !mapTitle.trim()) { setError("Informe o nome e selecione uma imagem de mapa."); return; }
     if (!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type) || file.size > MAX_MAP_SIZE) { setError("Use JPG, PNG, WebP ou GIF com até 15 MB."); return; }
@@ -127,13 +128,14 @@ export default function CampaignDetailPage() {
       if (uploadError) throw uploadError;
       const { error: insertError } = await supabase.from("campaign_maps").insert({campaign_id:campaignId,created_by:user.id,title:mapTitle.trim(),storage_path:path});
       if (insertError) { await supabase.storage.from("campaign-assets").remove([path]); throw insertError; }
-      setMapTitle(""); event.currentTarget.reset(); setNotice("Mapa salvo na biblioteca da campanha."); await loadCampaign();
+      setMapTitle(""); formElement.reset(); setNotice("Mapa salvo na biblioteca da campanha."); await loadCampaign();
     } catch (uploadError) { setError(uploadError instanceof Error ? uploadError.message : "Não foi possível salvar o mapa."); }
     finally { setUploading(""); }
   }
 
   async function uploadTrack(event) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     const file = event.currentTarget.elements.namedItem("trackFile")?.files?.[0];
     if (!file || !trackTitle.trim()) { setError("Informe o nome e selecione um arquivo de áudio."); return; }
     if (!file.type.startsWith("audio/") || file.size > MAX_AUDIO_SIZE) { setError("Selecione um áudio compatível de até 50 MB."); return; }
@@ -144,7 +146,7 @@ export default function CampaignDetailPage() {
       if (uploadError) throw uploadError;
       const { error: insertError } = await supabase.from("campaign_tracks").insert({campaign_id:campaignId,created_by:user.id,title:trackTitle.trim(),storage_path:path});
       if (insertError) { await supabase.storage.from("campaign-assets").remove([path]); throw insertError; }
-      setTrackTitle(""); event.currentTarget.reset(); setNotice("Trilha sonora adicionada."); await loadCampaign();
+      setTrackTitle(""); formElement.reset(); setNotice("Trilha sonora adicionada."); await loadCampaign();
     } catch (uploadError) { setError(uploadError instanceof Error ? uploadError.message : "Não foi possível salvar a trilha."); }
     finally { setUploading(""); }
   }
@@ -217,7 +219,7 @@ export default function CampaignDetailPage() {
       {isGm && <form className="panel campaign-upload-form" onSubmit={uploadTrack}><label><span>Nome da trilha</span><input value={trackTitle} onChange={(event)=>setTrackTitle(event.target.value)} maxLength={100} placeholder="Ex.: Exploração da masmorra" required/></label><label className="campaign-file-input"><AudioLines size={17}/><span>Selecionar áudio</span><input name="trackFile" type="file" accept="audio/*" required/></label><button className="button button-primary" type="submit" disabled={uploading==="track"}>{uploading==="track"?"Enviando...":"Adicionar trilha"}</button></form>}
       <div className="campaign-track-list">{visibleTracks.map((track)=> <article className="panel campaign-track-row" key={track.id}><span className="campaign-track-icon"><Music2 size={18}/></span><div className="campaign-track-copy"><strong>{track.title}</strong><small>{playback?.track_id===track.id && playback?.is_playing?"Tocando agora":"Trilha preparada"}</small></div>{isGm && <button className="button button-secondary" type="button" onClick={()=>playTrack(track)}><Play size={14}/> Tocar</button>}{isGm && <button className="icon-button" type="button" title={track.is_visible?"Ocultar dos jogadores":"Liberar para jogadores"} onClick={()=>toggleVisibility("campaign_tracks",track)}><Eye size={15}/></button>}{isGm && <button className="icon-button" type="button" aria-label="Excluir trilha" onClick={()=>removeAsset("campaign_tracks",track)}><Trash2 size={15}/></button>}</article>)}</div>
       {!visibleTracks.length && <div className="panel campaign-resource-empty"><Music2 size={25}/><strong>{isGm?"Nenhuma trilha adicionada ainda":"O mestre ainda não liberou trilhas sonoras."}</strong></div>}
-      <div className="panel campaign-audio-player"><div className="campaign-track-icon"><Volume2 size={19}/></div><div className="campaign-track-copy"><strong>{currentTrack?.title ?? "Nenhuma trilha selecionada"}</strong><small>{playback?.is_playing?"Reprodução sincronizada da campanha":"Aguardando o mestre selecionar uma trilha"}</small></div>{isGm && <button className="button button-secondary" type="button" disabled={!playback?.track_id} onClick={()=>setPlaybackState(!playback?.is_playing)}>{playback?.is_playing?"Pausar":"Retomar"}</button>}<audio ref={audioRef} src={audioUrl || undefined} controls preload="none" onEnded={()=>isGm&&setPlaybackState(false)} /></div>
+      <div className="panel campaign-audio-player"><div className="campaign-track-icon"><Volume2 size={19}/></div><div className="campaign-track-copy"><strong>{currentTrack?.title ?? "Nenhuma trilha selecionada"}</strong><small>{playback?.is_playing?"Reprodução sincronizada da campanha":"Aguardando o mestre selecionar uma trilha"}</small></div>{isGm && <button className="button button-secondary" type="button" disabled={!playback?.track_id} onClick={()=>setPlaybackState(!playback?.is_playing)}>{playback?.is_playing?"Pausar":"Retomar"}</button>}<audio ref={audioRef} src={audioUrl || undefined} controls={isGm} preload="none" onEnded={()=>isGm&&setPlaybackState(false)} /></div>
     </section>}
 
     {activeTab==="dice" && <DicePage campaignId={campaignId} embedded readOnly={role==="observer"}/>}
