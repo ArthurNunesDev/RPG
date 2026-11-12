@@ -7,6 +7,7 @@ import RoleSelectionPage from "./pages/RoleSelectionPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import DicePage from "./pages/DicePage.jsx";
 import LibraryPage from "./pages/LibraryPage.jsx";
+import CampaignsPage from "./pages/CampaignsPage.jsx";
 import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 
 export default function App() {
@@ -22,7 +23,7 @@ export default function App() {
             <Route element={<RequireRole />}>
               <Route element={<AppLayout />}>
                 <Route index element={<DashboardPage />} />
-                <Route path="campaigns" element={<PlaceholderPage eyebrow="Suas aventuras" title="Campanhas" description="Crie mundos, convide jogadores e acompanhe o progresso de cada aventura." icon="campaigns" />} />
+                <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="characters" element={<PlaceholderPage eyebrow="Seus heróis" title="Personagens" description="Reúna fichas, atributos, habilidades e inventários em um só lugar." icon="characters" />} />
                 <Route path="tabletop" element={<PlaceholderPage eyebrow="Jogo em tempo real" title="Mesa virtual" description="Mapas, tokens, chat e ferramentas para conduzir suas sessões." icon="tabletop" />} />
                 <Route path="dice" element={<DicePage />} />
