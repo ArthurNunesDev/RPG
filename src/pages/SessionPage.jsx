@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, BookOpen, Check, Copy, Dice5, Eye, ImagePlus, LogOut,
-  Map, Menu, MessageCircle, Send, Shield, Swords, Trash2,
+  Map as MapIcon, Menu, MessageCircle, Send, Shield, Swords, Trash2,
   UserRound, Users, X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -83,7 +83,7 @@ function CharacterEditDialog({ character, saving, error, onClose, onSave, onChan
 
 const sections = [
   { id: "overview", label: "Visão geral", icon: BookOpen },
-  { id: "maps", label: "Mapas", icon: Map },
+  { id: "maps", label: "Mapas", icon: MapIcon },
   { id: "characters", label: "Personagens", icon: UserRound },
   { id: "dice", label: "Rolagem de dados", icon: Dice5 },
   { id: "chat", label: "Chat da sessão", icon: MessageCircle },
@@ -493,7 +493,7 @@ export default function SessionPage() {
               <div className="room-welcome-emblem"><Swords size={48} /></div>
             </div>
             <div className="room-summary-grid">
-              <button className="panel room-summary-card" type="button" onClick={() => selectSection("maps")}><span><Map size={18} /></span><strong>{visibleMaps.length}</strong><small>Mapas disponíveis</small><b>Abrir mapas</b></button>
+              <button className="panel room-summary-card" type="button" onClick={() => selectSection("maps")}><span><MapIcon size={18} /></span><strong>{visibleMaps.length}</strong><small>Mapas disponíveis</small><b>Abrir mapas</b></button>
               <button className="panel room-summary-card" type="button" onClick={() => selectSection("characters")}><span><UserRound size={18} /></span><strong>{characters.length}</strong><small>Personagens</small><b>Ver fichas</b></button>
               <button className="panel room-summary-card" type="button" onClick={() => selectSection("members")}><span><Users size={18} /></span><strong>{session.members?.length || 0}</strong><small>Participantes</small><b>Ver grupo</b></button>
               <button className="panel room-summary-card" type="button" onClick={() => selectSection("dice")}><span><Dice5 size={18} /></span><strong>D20</strong><small>Mesa de rolagem</small><b>Rolar dados</b></button>
@@ -514,7 +514,7 @@ export default function SessionPage() {
               <button className="button button-primary" type="submit" disabled={uploadingMap}>{uploadingMap ? "Enviando..." : "Adicionar mapa"}</button>
             </form>}
             {visibleMaps.length ? <div className="room-map-grid">{visibleMaps.map((item) => <SessionMapCard key={item.id} item={item} isGm={isGm} onVisibility={() => handleMapVisibility(item)} onDelete={() => handleDeleteMap(item)} />)}</div>
-              : <div className="panel room-empty"><Map size={28} /><strong>{isGm ? "Nenhum mapa cadastrado" : "O mestre ainda não disponibilizou mapas"}</strong><p>{isGm ? "Adicione o primeiro mapa para preparar o cenário da sessão." : "Quando um mapa for liberado, ele aparecerá nesta seção."}</p></div>}
+              : <div className="panel room-empty"><MapIcon size={28} /><strong>{isGm ? "Nenhum mapa cadastrado" : "O mestre ainda não disponibilizou mapas"}</strong><p>{isGm ? "Adicione o primeiro mapa para preparar o cenário da sessão." : "Quando um mapa for liberado, ele aparecerá nesta seção."}</p></div>}
           </section>}
 
           {activeSection === "characters" && <section className="room-section">
