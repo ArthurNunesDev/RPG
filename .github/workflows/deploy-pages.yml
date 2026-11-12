@@ -31,7 +31,13 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Build application
-        run: npm run build
+        run: |
+          set -a
+          source .env.example
+          set +a
+          test -n "${VITE_SUPABASE_URL:-}" || (echo "VITE_SUPABASE_URL is missing from .env.example" && exit 1)
+          test -n "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" || (echo "VITE_SUPABASE_PUBLISHABLE_KEY is missing from .env.example" && exit 1)
+          npm run build
 
       - name: Configure SPA fallback
         run: cp dist/index.html dist/404.html
