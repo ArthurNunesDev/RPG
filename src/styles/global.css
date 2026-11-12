@@ -355,3 +355,7 @@ h1, h2, h3, p { overflow-wrap: break-word; }
 .history-entry-meta { color:#77737b; font-size:9px; }
 .history-roll-values { color:#a39ca2; font-size:9px; }
 @media(max-width:700px) { .dice-context { grid-template-columns:1fr; } .dice-context label { align-items:flex-start; flex-direction:column; gap:7px; } .dice-context select { width:100%; } .dice-scope-control { justify-content:stretch; } .dice-scope-control button { flex:1; justify-content:center; } }
+
+.dice-mode-field { display:flex; flex-direction:column; gap:6px; margin-top:12px; color:#bcb5aa; font-size:10px; }
+.dice-mode-field select { min-height:37px; padding:0 10px; border:1px solid var(--line-strong); border-radius:6px; color:var(--text); background:var(--surface-raised); }
+.dice-mode-field select:disabled { opacity:.55; cursor:not-allowed; }
