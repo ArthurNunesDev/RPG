@@ -80,7 +80,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="section-block">
-        <div className="section-heading"><div><p className="eyebrow">ACESSO RÁPIDO</p><h2>Seu espaço de aventura</h2></div><span className="section-note">Olá, {profile?.display_name || user?.email || "aventureiro"}.</span></div>
+        <div className="section-heading"><div><p className="eyebrow">ACESSO RÁPIDO</p><h2>Seu espaço de aventura</h2></div><span className="section-note">Olá, {profile?.username ? `@${profile.username}` : "aventureiro"}.</span></div>
         <div className="quick-grid">
           {content.links.map(({ to, icon: Icon, title, description, tone }) => (
             <Link className="quick-card" to={to} key={to}>
