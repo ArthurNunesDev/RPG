@@ -360,7 +360,7 @@ create policy "users create their own characters"
         and exists (
           select 1 from public.campaigns c
           where c.id = campaign_id
-            and c.game_system_id = game_system_id
+            and c.game_system_id = characters.game_system_id
         )
       )
     )
@@ -399,7 +399,7 @@ create policy "owners and game masters update characters"
         and exists (
           select 1 from public.campaigns c
           where c.id = campaign_id
-            and c.game_system_id = game_system_id
+            and c.game_system_id = characters.game_system_id
         )
       )
     )
