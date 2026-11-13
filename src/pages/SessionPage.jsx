@@ -167,7 +167,7 @@ export default function SessionPage() {
       ] = await Promise.all([
         supabase.functions.invoke("realm-sessions", { body: { action: "info", sessionId } }),
         supabase.from("session_messages").select("id, session_id, author_id, content, created_at").eq("session_id", sessionId).order("created_at", { ascending: true }).limit(100),
-        supabase.from("session_map_states").select("session_id, campaign_id, active_map_id, is_open, updated_at").eq("session_id", sessionId).maybeSingle(),
+        supabase.from("session_map_states").select("session_id, campaign_id, active_map_id, is_open, view_zoom, view_offset_x, view_offset_y, updated_at").eq("session_id", sessionId).maybeSingle(),
         supabase.from("session_map_access_requests").select("id, session_id, campaign_id, map_id, user_id, status, requested_at").eq("session_id", sessionId).order("requested_at", { ascending: false }),
         supabase.from("session_map_annotations").select("id, session_id, map_id, annotation_type, payload, created_at").eq("session_id", sessionId).order("created_at", { ascending: true }),
       ]);
@@ -507,7 +507,7 @@ export default function SessionPage() {
     const closing = mapState?.is_open && mapState.active_map_id === item.id;
     const { error: stateError } = await supabase.from("session_map_states").upsert({
       session_id: sessionId, campaign_id: campaignId, active_map_id: closing ? null : item.id,
-      is_open: !closing, updated_by: user.id, updated_at: new Date().toISOString(),
+      is_open: !closing, view_zoom: 1, view_offset_x: 0, view_offset_y: 0, updated_by: user.id, updated_at: new Date().toISOString(),
     }, { onConflict: "session_id" });
     if (stateError) { setError(stateError.message); return; }
     setNotice(closing ? "Mapa fechado para os participantes." : "Mapa aberto. Os participantes podem solicitar acesso.");
@@ -529,6 +529,14 @@ export default function SessionPage() {
     else { setNotice(status === "approved" ? "Acesso ao mapa aprovado." : "Solicitação de acesso recusada."); await loadSession(true); }
   }
 
+  async function handleMapViewportChange(viewport) {
+    if (!supabase || !isGm || !mapState?.is_open) return;
+    const { error: viewportError } = await supabase.from("session_map_states").update({
+      view_zoom: viewport.zoom, view_offset_x: viewport.x, view_offset_y: viewport.y,
+      updated_by: user.id, updated_at: new Date().toISOString(),
+    }).eq("session_id", sessionId);
+    if (viewportError) setError("Não foi possível sincronizar a posição do mapa: " + viewportError.message);
+  }
   async function handleCreateMapAnnotation(annotationType, payload) {
     if (!supabase || !isGm || !activeMap || !mapState?.is_open) return;
     const { error: annotationError } = await supabase.from("session_map_annotations").insert({ session_id: sessionId, campaign_id: campaignId, map_id: activeMap.id, created_by: user.id, annotation_type: annotationType, payload });
@@ -746,7 +754,7 @@ export default function SessionPage() {
                 return <div className="room-map-request-row" key={request.id}><div><strong>{requester?.displayName || "Participante"}</strong><small>{requester?.role === "observer" ? "Observador" : "Jogador"} · {requestedMap?.title || "Mapa"}</small></div><div className="room-approval-actions"><button className="button button-primary" type="button" onClick={() => handleDecideMapAccess(request, "approved")}><Check size={14} /> Aceitar</button><button className="button button-secondary" type="button" onClick={() => handleDecideMapAccess(request, "rejected")}><XCircle size={14} /> Recusar</button></div></div>;
               })}
             </section>}
-            {canViewActiveMap && activeMap && (activeMapUrl ? <SessionMapViewer key={activeMap.id} url={activeMapUrl} title={activeMap.title} annotations={mapAnnotations.filter((item) => item.map_id === activeMap.id)} isGm={isGm} onCreateAnnotation={handleCreateMapAnnotation} /> : <div className="panel room-empty">Carregando mapa autorizado...</div>)}
+            {canViewActiveMap && activeMap && (activeMapUrl ? <SessionMapViewer key={activeMap.id} url={activeMapUrl} title={activeMap.title} annotations={mapAnnotations.filter((item) => item.map_id === activeMap.id)} isGm={isGm} viewport={{ zoom: Number(mapState?.view_zoom) || 1, x: Number(mapState?.view_offset_x) || 0, y: Number(mapState?.view_offset_y) || 0 }} onViewportChange={handleMapViewportChange} onCreateAnnotation={handleCreateMapAnnotation} /> : <div className="panel room-empty">Carregando mapa autorizado...</div>)}
             {visibleMaps.length ? <div className="room-map-grid">{visibleMaps.map((item) => {
               const request = mapRequests.find((entry) => entry.map_id === item.id && entry.user_id === user?.id);
               const isActiveMap = Boolean(mapState?.is_open && mapState.active_map_id === item.id);
