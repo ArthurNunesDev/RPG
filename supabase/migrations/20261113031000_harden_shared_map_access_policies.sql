@@ -16,8 +16,9 @@ create policy "session participants request map access"
     and exists (
       select 1 from public.campaign_maps m
       join public.session_map_states st on st.session_id = session_map_access_requests.session_id
-      where m.id = map_id and m.campaign_id = campaign_id and m.is_visible
-        and st.active_map_id = m.id and st.is_open
+      where m.id = session_map_access_requests.map_id
+        and m.campaign_id = session_map_access_requests.campaign_id
+        and m.is_visible and st.active_map_id = m.id and st.is_open
     )
   );
 
