@@ -72,9 +72,9 @@ function TextField({ label, value, onChange, rows = 3, placeholder = "", disable
 function normalizeCombatActions(value, kind) {
   if (Array.isArray(value)) return value.map((item, index) => typeof item === "string"
     ? { id: `${kind}-${index}`, name: item, description: "", testFormula: "1d20", damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", peCost: 0, actionCost: "padrão", range: "" }
-    : { id: item.id || `${kind}-${index}`, name: item.name || "", description: item.description || "", testFormula: item.testFormula || "1d20", damageFormula: item.damageFormula || "", criticalExtraFormula: item.criticalExtraFormula || "", peCost: Number(item.peCost) || 0, actionCost: item.actionCost || "padrão", range: item.range || "", skill: item.skill || "Luta" })
+    : { id: item.id || `${kind}-${index}`, name: item.name || "", description: item.description || "", testFormula: item.testFormula || "1d20", damageFormula: item.damageFormula || "", criticalExtraFormula: item.criticalExtraFormula || "", healingFormula: item.healingFormula || "", effectType: item.effectType || (kind === "attack" ? "damage" : "utility"), statusEffect: item.statusEffect || "", peCost: Number(item.peCost) || 0, actionCost: item.actionCost || "padrão", range: item.range || "", skill: item.skill || "Luta" })
     .filter((item) => item.name || item.description);
-  if (typeof value === "string" && value.trim()) return value.split("\\n").filter(Boolean).map((name, index) => ({
+  if (typeof value === "string" && value.trim()) return value.split("\n").filter(Boolean).map((name, index) => ({
     id: `${kind}-legacy-${index}`, name, description: "", testFormula: "1d20", damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", healingFormula: "", effectType: kind === "attack" ? "damage" : "utility", statusEffect: "", peCost: 0, actionCost: "padrão", range: "", skill: "Luta",
   }));
   return [];
