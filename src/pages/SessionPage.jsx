@@ -9,6 +9,7 @@ import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import PresenceTracker from "../components/PresenceTracker.jsx";
 import SessionMapViewer from "../components/SessionMapViewer.jsx";
+import CharacterSheetEditor, { createCharacterSheet } from "../components/CharacterSheetEditor.jsx";
 import DicePage from "./DicePage.jsx";
 import "../styles/session.css";
 
@@ -58,7 +59,7 @@ function SessionMapCard({ item, isGm, canView, canRequestAccess, requestStatus, 
     </article>
   );
 }
-function CharacterEditDialog({ character, saving, error, onClose, onSave, onChange }) {
+function CharacterEditDialog({ character, systemName, saving, error, onClose, onSave, onChange }) {
   if (!character) return null;
   return (
     <div className="room-dialog-backdrop" role="presentation" onMouseDown={(event) => {
@@ -72,7 +73,7 @@ function CharacterEditDialog({ character, saving, error, onClose, onSave, onChan
         <label className="room-field"><span>Nome</span><input value={character.name} onChange={(event) => onChange("name", event.target.value)} maxLength={80} required /></label>
         <label className="room-field"><span>Descrição / conceito</span><textarea value={character.concept} onChange={(event) => onChange("concept", event.target.value)} maxLength={1000} rows={4} /></label>
         <label className="room-field"><span>URL da imagem</span><input type="url" value={character.avatar_url || ""} onChange={(event) => onChange("avatar_url", event.target.value)} maxLength={1000} placeholder="https://..." /></label>
-        <label className="room-field"><span>Ficha e atributos (JSON)</span><textarea value={character.sheetText || "{}"} onChange={(event) => onChange("sheetText", event.target.value)} rows={8} spellCheck={false} /></label>
+        <CharacterSheetEditor systemName={systemName} value={character.sheet} onChange={(nextSheet) => onChange("sheet", nextSheet)} />
         {character.character_type === "player" && <label className="room-visibility-toggle"><input type="checkbox" checked={character.is_visible_to_players !== false} onChange={(event) => onChange("is_visible_to_players", event.target.checked)} /><span><strong>Compartilhar ficha com outros participantes</strong><small>Desative para deixar a ficha privada. Somente você e o mestre poderão visualizá-la.</small></span></label>}
         {character.character_type === "npc" && <label className="room-field"><span>Tipo de NPC</span><select value={character.npc_role || "neutral"} onChange={(event) => onChange("npc_role", event.target.value)}><option value="ally">Aliado</option><option value="enemy">Inimigo</option><option value="neutral">Neutro</option></select></label>}
         <label className="room-field"><span>Status</span><select value={character.status} onChange={(event) => onChange("status", event.target.value)}><option value="active">Ativo</option><option value="retired">Aposentado</option><option value="deceased">Morto</option></select></label>
@@ -193,7 +194,7 @@ export default function SessionPage() {
             .order("sort_order", { ascending: true })
             .order("created_at", { ascending: true }),
           supabase.from("characters")
-            .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, avatar_url, sheet, is_visible_to_players, campaign_approval_status, created_at, updated_at")
+            .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, avatar_url, sheet, is_visible_to_players, campaign_approval_status, created_at, updated_at, game_systems(name)")
             .eq("campaign_id", currentCampaignId)
             .order("updated_at", { ascending: false }),
           supabase.from("characters")
@@ -616,7 +617,10 @@ export default function SessionPage() {
   function openCharacterEditor(character) {
     if (isObserver || (!isGm && character.owner_id !== user?.id)) return;
     setCharacterError("");
-    setEditingCharacter({ ...character, sheetText: JSON.stringify(character.sheet && typeof character.sheet === "object" ? character.sheet : {}, null, 2) });
+    const currentSheet = character.sheet && typeof character.sheet === "object" && Object.keys(character.sheet).length
+      ? character.sheet
+      : createCharacterSheet(character.game_systems?.name || "");
+    setEditingCharacter({ ...character, sheet: currentSheet });
   }
 
   function changeCharacter(field, value) {
@@ -628,13 +632,11 @@ export default function SessionPage() {
     if (!supabase || !editingCharacter || savingCharacter) return;
     const name = editingCharacter.name.trim();
     const concept = editingCharacter.concept.trim();
-    let sheet;
-    try {
-      sheet = JSON.parse(editingCharacter.sheetText || "{}");
-      if (!sheet || typeof sheet !== "object" || Array.isArray(sheet)) throw new Error("A ficha precisa ser um objeto JSON.");
-      if (JSON.stringify(sheet).length > 64000) throw new Error("A ficha ultrapassa o limite de 64 KB.");
-    } catch (parseError) {
-      setCharacterError(parseError instanceof Error ? parseError.message : "JSON da ficha inválido.");
+    const sheet = editingCharacter.sheet && typeof editingCharacter.sheet === "object" && !Array.isArray(editingCharacter.sheet)
+      ? editingCharacter.sheet
+      : {};
+    if (JSON.stringify(sheet).length > 64000) {
+      setCharacterError("A ficha ultrapassa o limite de 64 KB.");
       return;
     }
     const avatarUrl = (editingCharacter.avatar_url || "").trim();
@@ -861,7 +863,7 @@ export default function SessionPage() {
           </div>
         </section>
       </div>}
-      <CharacterEditDialog character={editingCharacter} saving={savingCharacter} error={characterError} onClose={() => setEditingCharacter(null)} onSave={handleSaveCharacter} onChange={changeCharacter} />
+      <CharacterEditDialog character={editingCharacter} systemName={editingCharacter?.game_systems?.name || ""} saving={savingCharacter} error={characterError} onClose={() => setEditingCharacter(null)} onSave={handleSaveCharacter} onChange={changeCharacter} />
     </main>
   );
 }
