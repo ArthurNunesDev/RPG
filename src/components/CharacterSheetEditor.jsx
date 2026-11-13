@@ -147,7 +147,6 @@ export default function CharacterSheetEditor({ systemName, value, onChange, disa
       <Field label="PE por rodada" type="number" min={0} value={sheet.vitals?.pePerRound} onChange={(v) => update("vitals.pePerRound", v)} />
       <Field label="PD atuais" type="number" min={0} value={sheet.vitals?.pd} onChange={(v) => update("vitals.pd", v)} />
       <Field label="PD máximos" type="number" min={0} value={sheet.vitals?.pdMax} onChange={(v) => update("vitals.pdMax", v)} />
-      <Field label="PE máximos" type="number" min={0} value={sheet.vitals?.peMax} onChange={(v) => update("vitals.peMax", v)} />
       <Field label="Sanidade atual" type="number" min={0} value={sheet.vitals?.san} onChange={(v) => update("vitals.san", v)} />
       <Field label="Sanidade máxima" type="number" min={0} value={sheet.vitals?.sanMax} onChange={(v) => update("vitals.sanMax", v)} />
       <Field label="Defesa" type="number" min={0} value={sheet.vitals?.defense} onChange={(v) => update("vitals.defense", v)} />
