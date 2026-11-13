@@ -268,15 +268,15 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
         totalDamage: result?.totalDamage || 0,
         message: result?.message || `${actor.character_name} usou ${action.name}.`,
       };
-      const { error: insertError } = await supabase.from("combat_action_requests").insert({
+      const { data: createdRequest, error: insertError } = await supabase.from("combat_action_requests").insert({
         encounter_id: encounter.id, actor_character_id: actor.character_id,
         target_character_id: target?.character_id ?? null, action_id: action.id || action.name,
         action_type: kind === "attack" ? "attack" : "ability", payload, requested_by: userId,
-      });
+      }).select("id").single();
       if (insertError) throw insertError;
       if (asGm) {
         const { data, error: resolveError } = await supabase.rpc("resolve_combat_action", {
-          p_request_id: (await supabase.from("combat_action_requests").select("id").eq("encounter_id", encounter.id).eq("actor_character_id", actor.character_id).eq("requested_by", userId).order("requested_at", { ascending: false }).limit(1).single()).data.id,
+          p_request_id: createdRequest.id,
           p_resolution: { damage: result?.totalDamage || 0, pe_cost: Number(action.peCost) || 0, message: payload.message },
         });
         if (resolveError) throw resolveError;
