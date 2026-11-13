@@ -179,6 +179,10 @@ export default function CharactersPage() {
       setError("A descrição deve ter no máximo 1.000 caracteres.");
       return;
     }
+    if (!sheet || typeof sheet !== "object" || Array.isArray(sheet) || JSON.stringify(sheet).length > 64000) {
+      setError("A ficha está inválida ou ultrapassa o limite de 64 KB.");
+      return;
+    }
     if (isNpc && (!campaign || campaign.role !== "gm")) {
       setError("NPCs só podem ser criados pelo mestre dentro de uma campanha que ele administra.");
       return;
