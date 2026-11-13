@@ -66,8 +66,9 @@ function TextField({ label, value, onChange, rows = 3, placeholder = "" }) {
   return <label className="sheet-field sheet-field-wide"><span>{label}</span><textarea rows={rows} value={value ?? ""} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
-function Section({ title, children }) {
-  return <section className="character-sheet-section"><h3>{title}</h3><div className="character-sheet-grid">{children}</div></section>;
+function Section({ title, children, variant = "" }) {
+  const className = variant ? `character-sheet-section character-sheet-section--${variant}` : "character-sheet-section";
+  return <section className={className}><h3>{title}</h3><div className="character-sheet-grid">{children}</div></section>;
 }
 
 export default function CharacterSheetEditor({ systemName, value, onChange, disabled = false }) {
@@ -129,17 +130,17 @@ export default function CharacterSheetEditor({ systemName, value, onChange, disa
         <Field label="Destino" value={sheet.identity?.destiny} onChange={(v) => update("identity.destiny", v)} />
       </Section>
     </>}
-    <Section title="Atributos">
+    <Section title="Atributos" variant="attributes">
       {attrs.map(([key, label]) => <Field key={key} label={label} type="number" min={0} max={isOrder ? 5 : 30} value={sheet.attributes?.[key]} onChange={(v) => update("attributes." + key, v)} />)}
     </Section>
-    {isOrder && <Section title="Perícias do agente">
+    {isOrder && <Section title="Perícias do agente" variant="skills">
       {OP_SKILLS.map(([name, attr]) => <div className="character-skill-row" key={name}>
         <div><strong>{name}</strong><small>{attr}</small></div>
         <label><span>Treino</span><select value={sheet.skills?.[name]?.training ?? 0} onChange={(event) => update("skills." + name + ".training", Number(event.target.value))}><option value={0}>Destreinado</option><option value={5}>Treinado (+5)</option><option value={10}>Veterano (+10)</option><option value={15}>Expert (+15)</option></select></label>
         <label><span>Outros bônus</span><input type="number" value={sheet.skills?.[name]?.other ?? 0} onChange={(event) => update("skills." + name + ".other", Number(event.target.value))} /></label>
       </div>)}
     </Section>}
-    {isOrder ? <Section title="Pontos e defesas">
+    {isOrder ? <Section title="Pontos e defesas" variant="vitals">
       <Field label="PV atuais" type="number" min={0} value={sheet.vitals?.hp} onChange={(v) => update("vitals.hp", v)} />
       <Field label="PV máximos" type="number" min={0} value={sheet.vitals?.hpMax} onChange={(v) => update("vitals.hpMax", v)} />
       <Field label="PE atuais" type="number" min={0} value={sheet.vitals?.pe} onChange={(v) => update("vitals.pe", v)} />
@@ -182,7 +183,12 @@ export default function CharacterSheetEditor({ systemName, value, onChange, disa
       </Section>
     </>}
     {isOrder ? <>
-      <Section title="Progressão, carga e recursos">\n        <Field label="Pontos de prestígio" type="number" min={0} value={sheet.progression?.prestige} onChange={(v) => update("progression.prestige", v)} />\n        <Field label="Crédito máximo" value={sheet.progression?.credit} onChange={(v) => update("progression.credit", v)} />\n        <Field label="Limite de itens" value={sheet.progression?.maxItems} onChange={(v) => update("progression.maxItems", v)} />\n        <Field label="Limite de carga" value={sheet.progression?.loadLimit} onChange={(v) => update("progression.loadLimit", v)} />\n      </Section>\n      <Section title="Combate, habilidades e recursos">
+      <Section title="Progressão, carga e recursos">
+        <Field label="Pontos de prestígio" type="number" min={0} value={sheet.progression?.prestige} onChange={(v) => update("progression.prestige", v)} />
+        <Field label="Crédito máximo" value={sheet.progression?.credit} onChange={(v) => update("progression.credit", v)} />
+        <Field label="Limite de itens" value={sheet.progression?.maxItems} onChange={(v) => update("progression.maxItems", v)} />
+        <Field label="Limite de carga" value={sheet.progression?.loadLimit} onChange={(v) => update("progression.loadLimit", v)} />
+      </Section>\n      <Section title="Combate, habilidades e recursos">
         <TextField label="Ataques (nome, teste, dano, crítico, alcance e efeitos)" value={Array.isArray(sheet.attacks) ? sheet.attacks.map((item) => typeof item === "string" ? item : JSON.stringify(item)).join("\n") : ""} onChange={(v) => update("attacks", v.split("\n").filter(Boolean))} rows={4} />
         <TextField label="Habilidades e poderes" value={sheet.abilities} onChange={(v) => update("abilities", v)} />
         <TextField label="Rituais" value={sheet.rituals} onChange={(v) => update("rituals", v)} />
