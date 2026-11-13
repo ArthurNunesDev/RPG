@@ -333,7 +333,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
         }).eq("encounter_id", encounter.id).eq("is_active", true);
         if (resetError) throw resetError;
         const { data: dueEffects, error: effectsError } = await supabase.from("combat_effects").select("*")
-          .eq("encounter_id", encounter.id).gt("remaining_rounds", 0);
+          .eq("encounter_id", encounter.id).lt("applied_round", nextRound).gt("remaining_rounds", 0);
         if (effectsError) throw effectsError;
         for (const effect of dueEffects || []) {
           const target = combatants.find((item) => item.character_id === effect.target_character_id);
@@ -342,8 +342,6 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
           if (effect.damage_per_round > 0) {
             const { error: hpError } = await supabase.from("combatants").update({ current_hp: nextHp, updated_at: new Date().toISOString() }).eq("id", target.id);
             if (hpError) throw hpError;
-            const { error: sheetError } = await supabase.from("characters").update({ sheet: { ...((characters.find((item) => item.id === target.character_id)?.sheet) || {}), vitals: { ...((characters.find((item) => item.id === target.character_id)?.sheet?.vitals) || {}), hp: nextHp } }, updated_at: new Date().toISOString() }).eq("id", target.character_id);
-            if (sheetError) throw sheetError;
           }
           const remaining = Math.max(0, effect.remaining_rounds - 1);
           const { error: effectUpdateError } = await supabase.from("combat_effects").update({ remaining_rounds: remaining, updated_at: new Date().toISOString() }).eq("id", effect.id);
