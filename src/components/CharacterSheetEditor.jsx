@@ -22,7 +22,7 @@ export function createCharacterSheet(systemName = "") {
       vitals: { hp: 0, hpMax: 0, pe: 0, peMax: 0, pd: 0, pdMax: 0, pePerRound: 1, san: 0, sanMax: 0, defense: 10, displacement: "9m", protection: "", resistances: "" },
       progression: { prestige: 0, credit: "", maxItems: "", loadLimit: "", ritualDT: 0 },
       attacks: [],
-      abilities: "",
+      abilities: [],
       rituals: "",
       inventory: "",
       notes: "",
@@ -67,6 +67,43 @@ function Field({ label, value, onChange, type = "text", placeholder = "", min, m
 
 function TextField({ label, value, onChange, rows = 3, placeholder = "", disabled = false }) {
   return <label className="sheet-field sheet-field-wide"><span>{label}</span><textarea rows={rows} value={value ?? ""} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.target.value)} /></label>;
+}
+
+function normalizeCombatActions(value, kind) {
+  if (Array.isArray(value)) return value.map((item, index) => typeof item === "string"
+    ? { id: `${kind}-${index}`, name: item, description: "", testFormula: "1d20", damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", peCost: 0, actionCost: "padrão", range: "" }
+    : { id: item.id || `${kind}-${index}`, name: item.name || "", description: item.description || "", testFormula: item.testFormula || "1d20", damageFormula: item.damageFormula || "", criticalExtraFormula: item.criticalExtraFormula || "", peCost: Number(item.peCost) || 0, actionCost: item.actionCost || "padrão", range: item.range || "", skill: item.skill || "Luta" })
+    .filter((item) => item.name || item.description);
+  if (typeof value === "string" && value.trim()) return value.split("\\n").filter(Boolean).map((name, index) => ({
+    id: `${kind}-legacy-${index}`, name, description: "", testFormula: "1d20", damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", peCost: 0, actionCost: "padrão", range: "", skill: "Luta",
+  }));
+  return [];
+}
+
+function CombatActionEditor({ title, actions, kind, onChange }) {
+  const update = (index, key, value) => onChange(actions.map((item, i) => i === index ? { ...item, [key]: value } : item));
+  const add = () => onChange([...actions, {
+    id: `${kind}-${Date.now()}`, name: "", description: "", testFormula: "1d20",
+    damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", peCost: 0,
+    actionCost: "padrão", range: "", skill: "Luta",
+  }]);
+  return <Section title={title} variant="combat-actions">
+    {actions.map((action, index) => <div className="sheet-combat-action" key={action.id || index}>
+      <div className="sheet-combat-action-heading"><strong>{action.name || `${kind === "attack" ? "Novo ataque" : "Nova habilidade"} ${index + 1}`}</strong><button type="button" className="button button-secondary" onClick={() => onChange(actions.filter((_, i) => i !== index))}>Remover</button></div>
+      <div className="character-sheet-grid">
+        <Field label="Nome" value={action.name} onChange={(v) => update(index, "name", v)} />
+        <Field label="Perícia / teste" value={action.skill} onChange={(v) => update(index, "skill", v)} placeholder="Luta, Pontaria, Ocultismo..." />
+        <Field label="Rolagem para acertar" value={action.testFormula} onChange={(v) => update(index, "testFormula", v)} placeholder="1d20" />
+        {kind === "attack" && <Field label="Dano" value={action.damageFormula} onChange={(v) => update(index, "damageFormula", v)} placeholder="2d10" />}
+        {kind === "attack" && <Field label="Dano adicional no crítico" value={action.criticalExtraFormula} onChange={(v) => update(index, "criticalExtraFormula", v)} placeholder="1d4" />}
+        <Field label="Custo em PE" type="number" min={0} value={action.peCost} onChange={(v) => update(index, "peCost", v)} />
+        <Field label="Custo de ação" value={action.actionCost} onChange={(v) => update(index, "actionCost", v)} placeholder="padrão, movimento, livre..." />
+        <Field label="Alcance" value={action.range} onChange={(v) => update(index, "range", v)} />
+        <TextField label="Descrição e efeitos" value={action.description} onChange={(v) => update(index, "description", v)} rows={2} />
+      </div>
+    </div>)}
+    <button type="button" className="button button-secondary" onClick={add}>Adicionar {kind === "attack" ? "ataque" : "habilidade"}</button>
+  </Section>;
 }
 
 function Section({ title, children, variant = "" }) {
@@ -203,9 +240,9 @@ export default function CharacterSheetEditor({ systemName, value, onChange, disa
         <Field label="Crédito máximo" value={sheet.progression?.credit} onChange={(v) => update("progression.credit", v)} />
         <Field label="Limite de itens" value={sheet.progression?.maxItems} onChange={(v) => update("progression.maxItems", v)} />
         <Field label="Limite de carga" value={sheet.progression?.loadLimit} onChange={(v) => update("progression.loadLimit", v)} />
-      </Section>\n      <Section title="Combate, habilidades e recursos">
-        <TextField label="Ataques (nome, teste, dano, crítico, alcance e efeitos)" value={Array.isArray(sheet.attacks) ? sheet.attacks.map((item) => typeof item === "string" ? item : JSON.stringify(item)).join("\n") : ""} onChange={(v) => update("attacks", v.split("\n").filter(Boolean))} rows={4} />
-        <TextField label="Habilidades e poderes" value={sheet.abilities} onChange={(v) => update("abilities", v)} />
+      </Section>\n      <CombatActionEditor title="Ataques" kind="attack" actions={normalizeCombatActions(sheet.attacks, "attack")} onChange={(v) => update("attacks", v)} />
+      <CombatActionEditor title="Habilidades e poderes" kind="ability" actions={normalizeCombatActions(sheet.abilities, "ability")} onChange={(v) => update("abilities", v)} />
+      <Section title="Recursos e anotações">
         <TextField label="Rituais" value={sheet.rituals} onChange={(v) => update("rituals", v)} />
         <TextField label="Inventário e carga" value={sheet.inventory} onChange={(v) => update("inventory", v)} />
         <TextField label="Anotações" value={sheet.notes} onChange={(v) => update("notes", v)} />
