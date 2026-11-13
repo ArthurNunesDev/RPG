@@ -3,11 +3,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, BookOpen, Check, Copy, Dice5, Eye, ImagePlus, LogOut,
   Map as MapIcon, Menu, MessageCircle, Send, Shield, Swords, Trash2,
-  UserRound, Users, X,
+  UserRound, Users, X, CheckCircle2, XCircle, LockKeyhole, Unlock,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import PresenceTracker from "../components/PresenceTracker.jsx";
+import SessionMapViewer from "../components/SessionMapViewer.jsx";
 import DicePage from "./DicePage.jsx";
 import "../styles/session.css";
 
@@ -38,45 +39,25 @@ function formatTime(value) {
   return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
-function SessionMapCard({ item, isGm, onVisibility, onDelete }) {
+function SessionMapCard({ item, isGm, canView, requestStatus, isActiveMap, onRequestAccess, onOpen, onVisibility, onDelete }) {
   const [url, setUrl] = useState("");
   const [imageError, setImageError] = useState("");
-
   useEffect(() => {
     let active = true;
+    if (!canView) { setUrl(""); return undefined; }
     supabase.storage.from("campaign-assets").createSignedUrl(item.storage_path, 3600)
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) setImageError("Não foi possível carregar este mapa.");
-        else setUrl(data?.signedUrl ?? "");
-      })
-      .catch(() => {
-        if (active) setImageError("Não foi possível carregar este mapa.");
-      });
+      .then(({ data, error }) => { if (!active) return; if (error) setImageError("Não foi possível carregar este mapa."); else setUrl(data?.signedUrl ?? ""); })
+      .catch(() => { if (active) setImageError("Não foi possível carregar este mapa."); });
     return () => { active = false; };
-  }, [item.storage_path]);
-
+  }, [item.storage_path, canView]);
   return (
     <article className="panel room-map-card">
-      {url ? <a className="room-map-image" href={url} target="_blank" rel="noreferrer">
-        <img src={url} alt={"Mapa: " + item.title} loading="lazy" />
-        <span><Eye size={14} /> Abrir imagem</span>
-      </a> : <div className="room-map-image room-map-image--empty">{imageError || "Carregando mapa..."}</div>}
-      <div className="room-map-card-body">
-        <div><strong>{item.title}</strong>{item.description && <p>{item.description}</p>}</div>
-        {isGm && <div className="room-map-actions">
-          <button className="button button-secondary" type="button" onClick={onVisibility}>
-            <Eye size={14} /> {item.is_visible ? "Ocultar" : "Disponibilizar"}
-          </button>
-          <button className="icon-button" type="button" onClick={onDelete} aria-label={"Excluir mapa " + item.title} title="Excluir mapa">
-            <Trash2 size={15} />
-          </button>
-        </div>}
-      </div>
+      {canView && url ? <div className="room-map-image"><img src={url} alt={"Mapa: " + item.title} loading="lazy" /></div> : <div className="room-map-image room-map-image--empty">{canView ? imageError || "Carregando mapa..." : <><LockKeyhole size={20} /> Acesso controlado pelo mestre</>}</div>}
+      <div className="room-map-card-body"><div><strong>{item.title}</strong>{item.description && <p>{item.description}</p>}{!isGm && requestStatus && <small className={"room-map-request-status " + requestStatus}>{requestStatus === "pending" ? "Solicitação pendente" : requestStatus === "approved" ? "Acesso aprovado" : "Solicitação recusada"}</small>}</div>
+      <div className="room-map-actions">{isGm ? <><button className="button button-primary" type="button" onClick={onOpen}>{isActiveMap ? "Fechar mapa" : "Abrir para sessão"}</button><button className="button button-secondary" type="button" onClick={onVisibility}><Eye size={14} /> {item.is_visible ? "Ocultar" : "Disponibilizar"}</button><button className="icon-button" type="button" onClick={onDelete} aria-label={"Excluir mapa " + item.title} title="Excluir mapa"><Trash2 size={15} /></button></> : requestStatus === "approved" && isActiveMap ? <span className="room-map-approved"><CheckCircle2 size={15} /> Liberado</span> : requestStatus === "pending" ? <span className="room-map-pending"><LockKeyhole size={14} /> Aguardando mestre</span> : <button className="button button-secondary" type="button" onClick={onRequestAccess}><Unlock size={14} /> Solicitar acesso ao mapa</button>}</div></div>
     </article>
   );
 }
-
 function CharacterEditDialog({ character, saving, error, onClose, onSave, onChange }) {
   if (!character) return null;
   return (
@@ -120,6 +101,10 @@ export default function SessionPage() {
   const [campaignId, setCampaignId] = useState("");
   const [campaignGameSystemId, setCampaignGameSystemId] = useState("");
   const [maps, setMaps] = useState([]);
+  const [mapState, setMapState] = useState(null);
+  const [mapRequests, setMapRequests] = useState([]);
+  const [mapAnnotations, setMapAnnotations] = useState([]);
+  const [activeMapUrl, setActiveMapUrl] = useState("");
   const [characters, setCharacters] = useState([]);
   const [messages, setMessages] = useState([]);
   const [onlineIds, setOnlineIds] = useState([]);
@@ -154,6 +139,9 @@ export default function SessionPage() {
     [session?.members],
   );
   const visibleMaps = maps.filter((item) => isGm || item.is_visible);
+  const activeMap = maps.find((item) => item.id === mapState?.active_map_id) || null;
+  const activeMapRequest = mapRequests.find((request) => request.map_id === activeMap?.id && request.user_id === user?.id);
+  const canViewActiveMap = Boolean(activeMap && mapState?.is_open && (isGm || activeMapRequest?.status === "approved"));
 
   const loadSession = useCallback(async (silent = false) => {
     if (!supabase || !user?.id || !sessionId) {
@@ -166,23 +154,34 @@ export default function SessionPage() {
       setError("");
     }
     try {
-      const [{ data: sessionData, error: sessionError }, { data: messageData, error: messageError }] = await Promise.all([
+      const [
+        { data: sessionData, error: sessionError },
+        { data: messageData, error: messageError },
+        { data: mapStateData, error: mapStateError },
+        { data: mapRequestData, error: mapRequestError },
+        { data: mapAnnotationData, error: mapAnnotationError },
+      ] = await Promise.all([
         supabase.functions.invoke("realm-sessions", { body: { action: "info", sessionId } }),
-        supabase.from("session_messages")
-          .select("id, session_id, author_id, content, created_at")
-          .eq("session_id", sessionId)
-          .order("created_at", { ascending: true })
-          .limit(100),
+        supabase.from("session_messages").select("id, session_id, author_id, content, created_at").eq("session_id", sessionId).order("created_at", { ascending: true }).limit(100),
+        supabase.from("session_map_states").select("session_id, campaign_id, active_map_id, is_open, updated_at").eq("session_id", sessionId).maybeSingle(),
+        supabase.from("session_map_access_requests").select("id, session_id, campaign_id, map_id, user_id, status, requested_at").eq("session_id", sessionId).order("requested_at", { ascending: false }),
+        supabase.from("session_map_annotations").select("id, session_id, map_id, annotation_type, payload, created_at").eq("session_id", sessionId).order("created_at", { ascending: true }),
       ]);
       if (sessionError) throw sessionError;
       if (sessionData?.error) throw new Error(sessionData.error);
       if (messageError) throw messageError;
+      if (mapStateError) throw mapStateError;
+      if (mapRequestError) throw mapRequestError;
+      if (mapAnnotationError) throw mapAnnotationError;
       const currentSession = sessionData?.session;
       if (!currentSession) throw new Error("Sessão não encontrada.");
       const currentCampaignId = currentSession.campaignId || currentSession.campaign_id || "";
       setSession(currentSession);
       setCampaignId(currentCampaignId);
       setMessages(messageData ?? []);
+      setMapState(mapStateData ?? null);
+      setMapRequests(mapRequestData ?? []);
+      setMapAnnotations(mapAnnotationData ?? []);
 
       if (currentCampaignId) {
         const [campaignResult, mapResult, characterResult, personalResult] = await Promise.all([
@@ -217,6 +216,19 @@ export default function SessionPage() {
   }, [sessionId, user?.id]);
 
   useEffect(() => { loadSession(false); }, [loadSession]);
+  
+  useEffect(() => {
+    let active = true;
+    if (!canViewActiveMap || !activeMap?.storage_path) { setActiveMapUrl(""); return undefined; }
+    supabase.storage.from("campaign-assets").createSignedUrl(activeMap.storage_path, 3600)
+      .then(({ data, error: signedUrlError }) => {
+        if (!active) return;
+        if (signedUrlError) setError("Não foi possível carregar o mapa autorizado.");
+        else setActiveMapUrl(data?.signedUrl || "");
+      })
+      .catch(() => { if (active) setError("Não foi possível carregar o mapa autorizado."); });
+    return () => { active = false; };
+  }, [canViewActiveMap, activeMap?.id, activeMap?.storage_path]);
 
   useEffect(() => {
     persistenceReadyRef.current = false;
@@ -303,9 +315,12 @@ export default function SessionPage() {
     const channel = supabase.channel("room-resources:" + campaignId)
       .on("postgres_changes", { event: "*", schema: "public", table: "campaign_maps", filter: "campaign_id=eq." + campaignId }, () => loadSession(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "characters", filter: "campaign_id=eq." + campaignId }, () => loadSession(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "session_map_access_requests", filter: "campaign_id=eq." + campaignId }, () => loadSession(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "session_map_states", filter: "session_id=eq." + sessionId }, () => loadSession(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "session_map_annotations", filter: "session_id=eq." + sessionId }, () => loadSession(true))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [campaignId, loadSession]);
+  }, [campaignId, sessionId, loadSession]);
 
   useEffect(() => {
     if (!supabase || !user?.id || !sessionId) return undefined;
