@@ -19,7 +19,8 @@ export function createCharacterSheet(systemName = "") {
       agent: { player: "", age: "", origin: "", class: "", track: "", nex: "5", rank: "Recruta", affinity: "", appearance: "", history: "" },
       attributes: { AGI: 1, FOR: 1, INT: 1, PRE: 1, VIG: 1 },
       skills: Object.fromEntries(OP_SKILLS.map(([name]) => [name, { training: 0, bonus: 0, other: 0 }])),
-      vitals: { hp: 0, hpMax: 0, pe: 0, peMax: 0, san: 0, sanMax: 0, defense: 10, displacement: "9m", protection: "", resistances: "" },
+      vitals: { hp: 0, hpMax: 0, pe: 0, peMax: 0, pd: 0, pdMax: 0, pePerRound: 1, san: 0, sanMax: 0, defense: 10, displacement: "9m", protection: "", resistances: "" },
+      progression: { prestige: 0, credit: "", maxItems: "", loadLimit: "", ritualDT: 0 },
       attacks: [],
       abilities: "",
       rituals: "",
@@ -143,9 +144,14 @@ export default function CharacterSheetEditor({ systemName, value, onChange, disa
       <Field label="PV máximos" type="number" min={0} value={sheet.vitals?.hpMax} onChange={(v) => update("vitals.hpMax", v)} />
       <Field label="PE atuais" type="number" min={0} value={sheet.vitals?.pe} onChange={(v) => update("vitals.pe", v)} />
       <Field label="PE máximos" type="number" min={0} value={sheet.vitals?.peMax} onChange={(v) => update("vitals.peMax", v)} />
+      <Field label="PE por rodada" type="number" min={0} value={sheet.vitals?.pePerRound} onChange={(v) => update("vitals.pePerRound", v)} />
+      <Field label="PD atuais" type="number" min={0} value={sheet.vitals?.pd} onChange={(v) => update("vitals.pd", v)} />
+      <Field label="PD máximos" type="number" min={0} value={sheet.vitals?.pdMax} onChange={(v) => update("vitals.pdMax", v)} />
+      <Field label="PE máximos" type="number" min={0} value={sheet.vitals?.peMax} onChange={(v) => update("vitals.peMax", v)} />
       <Field label="Sanidade atual" type="number" min={0} value={sheet.vitals?.san} onChange={(v) => update("vitals.san", v)} />
       <Field label="Sanidade máxima" type="number" min={0} value={sheet.vitals?.sanMax} onChange={(v) => update("vitals.sanMax", v)} />
       <Field label="Defesa" type="number" min={0} value={sheet.vitals?.defense} onChange={(v) => update("vitals.defense", v)} />
+      <Field label="DT de rituais" type="number" min={0} value={sheet.progression?.ritualDT} onChange={(v) => update("progression.ritualDT", v)} />
       <Field label="Deslocamento" value={sheet.vitals?.displacement} onChange={(v) => update("vitals.displacement", v)} />
       <TextField label="Proteção" value={sheet.vitals?.protection} onChange={(v) => update("vitals.protection", v)} />
       <TextField label="Resistências" value={sheet.vitals?.resistances} onChange={(v) => update("vitals.resistances", v)} />
@@ -177,7 +183,7 @@ export default function CharacterSheetEditor({ systemName, value, onChange, disa
       </Section>
     </>}
     {isOrder ? <>
-      <Section title="Combate, habilidades e recursos">
+      <Section title="Progressão, carga e recursos">\n        <Field label="Pontos de prestígio" type="number" min={0} value={sheet.progression?.prestige} onChange={(v) => update("progression.prestige", v)} />\n        <Field label="Crédito máximo" value={sheet.progression?.credit} onChange={(v) => update("progression.credit", v)} />\n        <Field label="Limite de itens" value={sheet.progression?.maxItems} onChange={(v) => update("progression.maxItems", v)} />\n        <Field label="Limite de carga" value={sheet.progression?.loadLimit} onChange={(v) => update("progression.loadLimit", v)} />\n      </Section>\n      <Section title="Combate, habilidades e recursos">
         <TextField label="Ataques (nome, teste, dano, crítico, alcance e efeitos)" value={Array.isArray(sheet.attacks) ? sheet.attacks.map((item) => typeof item === "string" ? item : JSON.stringify(item)).join("\n") : ""} onChange={(v) => update("attacks", v.split("\n").filter(Boolean))} rows={4} />
         <TextField label="Habilidades e poderes" value={sheet.abilities} onChange={(v) => update("abilities", v)} />
         <TextField label="Rituais" value={sheet.rituals} onChange={(v) => update("rituals", v)} />
