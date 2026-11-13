@@ -102,3 +102,22 @@
 .campaign-pin-entry span { color:var(--muted); font-size:10px; }
 .campaign-pin-entry input { min-width:0; min-height:39px; padding:0 12px; border:1px solid var(--line-strong); border-radius:7px; color:var(--text); background:var(--surface-raised); font-size:12px; letter-spacing:2px; text-transform:uppercase; }
 @media(max-width:700px) { .campaign-pin-entry { grid-template-columns:1fr; } .campaign-pin-entry .button { width:100%; } }
+
+
+/* Campaign deletion confirmation */
+.campaign-delete-backdrop{position:fixed;inset:0;z-index:140;display:grid;place-items:center;padding:20px;background:rgba(7,7,10,.78);backdrop-filter:blur(7px)}
+.campaign-delete-dialog{width:min(100%,480px);padding:26px;border-color:rgba(190,103,103,.24);background:linear-gradient(155deg,#242027 0%,#17161b 78%);box-shadow:0 28px 90px rgba(0,0,0,.58)}
+.campaign-delete-dialog-icon{display:grid;width:48px;height:48px;place-items:center;margin-bottom:16px;border:1px solid rgba(205,112,112,.3);border-radius:12px;color:#dc9999;background:rgba(155,65,65,.12)}
+.campaign-delete-dialog>.eyebrow{margin:0 0 7px;color:#d69a86;font-size:9px;letter-spacing:.16em}
+.campaign-delete-dialog h2{margin:0 0 10px;color:#eee6d9;font:25px "Marcellus",Georgia,serif}
+.campaign-delete-dialog>p:not(.eyebrow){margin:0;color:#aaa2a8;font-size:11px;line-height:1.7}
+.campaign-delete-dialog>p strong{color:#eee0d0}
+.campaign-delete-warning{display:grid;gap:8px;margin:19px 0;padding:14px;border:1px solid rgba(205,112,112,.17);border-radius:9px;background:rgba(155,65,65,.055)}
+.campaign-delete-warning>strong{color:#e3c7bc;font-size:10px}
+.campaign-delete-warning ul{display:grid;gap:6px;margin:0;padding-left:17px;color:#aaa0a5;font-size:9px;line-height:1.55}
+.campaign-delete-warning small{padding-top:8px;border-top:1px solid rgba(255,255,255,.07);color:#9caaa0;font-size:9px;line-height:1.5}
+.campaign-delete-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.campaign-delete-confirm{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(190,103,103,.38);color:#f0caca;background:linear-gradient(135deg,rgba(139,61,61,.38),rgba(107,43,43,.25))}
+.campaign-delete-confirm:hover:not(:disabled){border-color:rgba(220,126,126,.65);background:rgba(139,61,61,.48)}
+.campaign-delete-confirm:disabled{opacity:.6;cursor:wait}
+@media(max-width:520px){.campaign-delete-dialog{padding:21px}.campaign-delete-dialog h2{font-size:22px}.campaign-delete-actions{flex-direction:column-reverse}.campaign-delete-actions .button{width:100%;justify-content:center}}
