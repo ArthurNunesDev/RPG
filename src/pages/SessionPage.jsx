@@ -198,7 +198,7 @@ export default function SessionPage() {
             .eq("campaign_id", currentCampaignId)
             .order("updated_at", { ascending: false }),
           supabase.from("characters")
-            .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, avatar_url, sheet, is_visible_to_players, campaign_approval_status, created_at, updated_at")
+            .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, avatar_url, sheet, is_visible_to_players, campaign_approval_status, created_at, updated_at, game_systems(name)")
             .eq("owner_id", user.id).is("campaign_id", null)
             .order("updated_at", { ascending: false }),
         ]);
