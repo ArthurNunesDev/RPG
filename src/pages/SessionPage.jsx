@@ -14,6 +14,24 @@ import "../styles/session.css";
 const MAX_MAP_SIZE = 15 * 1024 * 1024;
 const ALLOWED_MAP_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
+const ROOM_SECTIONS = new Set(["overview", "maps", "characters", "battles", "dice", "chat", "members"]);
+
+function getRoomStorageKey(sessionId, userId) {
+  return "realms:session-room:" + sessionId + ":" + userId;
+}
+
+function readRoomState(sessionId, userId) {
+  if (!sessionId || !userId || typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(getRoomStorageKey(sessionId, userId));
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    return value && value.version === 1 && value.userId === userId ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 function formatTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -121,6 +139,8 @@ export default function SessionPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const bottomRef = useRef(null);
+  const persistenceReadyRef = useRef(false);
+  const restoredScrollRef = useRef(false);
 
   const membership = useMemo(
     () => session?.members?.find((member) => member.userId === user?.id) ?? null,
@@ -196,6 +216,86 @@ export default function SessionPage() {
   }, [sessionId, user?.id]);
 
   useEffect(() => { loadSession(false); }, [loadSession]);
+
+  useEffect(() => {
+    persistenceReadyRef.current = false;
+    restoredScrollRef.current = false;
+    const saved = readRoomState(sessionId, user?.id);
+    if (saved) {
+      if (ROOM_SECTIONS.has(saved.activeSection)) setActiveSection(saved.activeSection);
+      setDraft(typeof saved.draft === "string" ? saved.draft : "");
+      setMapTitle(typeof saved.mapTitle === "string" ? saved.mapTitle : "");
+      setMapDescription(typeof saved.mapDescription === "string" ? saved.mapDescription : "");
+      setEditingCharacter(saved.editingCharacter && typeof saved.editingCharacter === "object" ? saved.editingCharacter : null);
+    } else {
+      setActiveSection("overview");
+      setDraft("");
+      setMapTitle("");
+      setMapDescription("");
+      setEditingCharacter(null);
+    }
+    persistenceReadyRef.current = true;
+  }, [sessionId, user?.id]);
+
+  useEffect(() => {
+    if (!persistenceReadyRef.current || !sessionId || !user?.id) return;
+    try {
+      const previous = readRoomState(sessionId, user.id);
+      window.sessionStorage.setItem(getRoomStorageKey(sessionId, user.id), JSON.stringify({
+        version: 1,
+        userId: user.id,
+        activeSection,
+        draft,
+        mapTitle,
+        mapDescription,
+        editingCharacter,
+        scrollY: previous?.scrollY ?? window.scrollY,
+      }));
+    } catch {
+      // A sala continua funcional mesmo quando o armazenamento do navegador está indisponível.
+    }
+  }, [sessionId, user?.id, activeSection, draft, mapTitle, mapDescription, editingCharacter]);
+
+  useEffect(() => {
+    if (loading || !session || restoredScrollRef.current) return undefined;
+    restoredScrollRef.current = true;
+    const saved = readRoomState(sessionId, user?.id);
+    if (typeof saved?.scrollY !== "number" || !Number.isFinite(saved.scrollY)) return undefined;
+    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: saved.scrollY, behavior: "instant" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, session, sessionId, user?.id, activeSection]);
+
+  useEffect(() => {
+    if (!sessionId || !user?.id || !persistenceReadyRef.current) return undefined;
+    let frame = 0;
+    const persistScroll = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        try {
+          const previous = readRoomState(sessionId, user.id) || {};
+          window.sessionStorage.setItem(getRoomStorageKey(sessionId, user.id), JSON.stringify({
+            ...previous,
+            version: 1,
+            userId: user.id,
+            activeSection,
+            draft,
+            mapTitle,
+            mapDescription,
+            editingCharacter,
+            scrollY: window.scrollY,
+          }));
+        } catch {
+          // Falha de armazenamento não deve bloquear a navegação.
+        }
+      });
+    };
+    window.addEventListener("scroll", persistScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", persistScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [sessionId, user?.id, activeSection, draft, mapTitle, mapDescription, editingCharacter]);
+
 
   useEffect(() => {
     if (!supabase || !campaignId) return undefined;
