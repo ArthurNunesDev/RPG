@@ -136,7 +136,8 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   ), [characters, campaignId, isGm, userId]);
   const sortedCombatants = useMemo(() => [...combatants].sort((a, b) => a.turn_order - b.turn_order), [combatants]);
   const eligibleCombatants = useMemo(() => sortedCombatants.filter((item) => item.is_active && !item.turn_blocked), [sortedCombatants]);
-  const currentCombatant = eligibleCombatants[encounter?.turn_index ?? 0] ?? null;\n  const ownCombatant = sortedCombatants.find((item) => item.owner_id === userId && item.side === "players" && item.is_active && !item.turn_blocked && item.turn_control === "player") ?? null;
+  const currentCombatant = eligibleCombatants[encounter?.turn_index ?? 0] ?? null;
+  const ownCombatant = sortedCombatants.find((item) => item.owner_id === userId && item.side === "players" && item.is_active && !item.turn_blocked && item.turn_control === "player") ?? null;
   const pendingRequests = requests.filter((request) => request.status === "pending");
   const availableToAdd = approvedCharacters.filter((character) => !combatants.some((item) => item.character_id === character.id));
   const actorForControls = sortedCombatants.find((item) => item.character_id === selectedActor) ?? currentCombatant;
@@ -340,7 +341,8 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
 
   const submitAction = async (actor, target, action, kind, asGm = false) => {
     if (!encounter || !actor || !action || ((kind === "attack" || (kind === "ability" && (action.effectType !== "utility" || action.statusEffect))) && !target) || busy) return;
-    const isReaction = ["dodge", "counterattack", "defend"].includes(action.actionType);\n    if (!asGm && ((!isMyTurn && !isReaction) || encounter.turns_paused || actor.owner_id !== userId || actor.turn_blocked || actor.turn_control !== "player" || (isReaction && actor.actions_used?.reaction))) {
+    const isReaction = ["dodge", "counterattack", "defend"].includes(action.actionType);
+    if (!asGm && ((!isMyTurn && !isReaction) || encounter.turns_paused || actor.owner_id !== userId || actor.turn_blocked || actor.turn_control !== "player" || (isReaction && actor.actions_used?.reaction))) {
       setError("Você não pode agir neste turno. Aguarde a liberação do mestre."); return;
     }
     setBusy(true); setError(""); setNotice("");
