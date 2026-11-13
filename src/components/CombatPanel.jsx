@@ -281,7 +281,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
     try {
       const result = target ? resolveActionRoll(actor, target, action, kind) : null;
       const payload = {
-        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, actionCost: action.actionCost || "padrão", peCost: Number(action.peCost) || 0 },
+        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, statusEffect: action.statusEffect, actionCost: action.actionCost || "padrão", peCost: Number(action.peCost) || 0 },
         roll: result,
         totalDamage: result?.totalDamage || 0,
         message: result?.message || `${actor.character_name} usou ${action.name}.`,
@@ -295,7 +295,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
       if (asGm) {
         const { data, error: resolveError } = await supabase.rpc("resolve_combat_action", {
           p_request_id: createdRequest.id,
-          p_resolution: { damage: result?.totalDamage || 0, healing: result?.totalHealing || 0, pe_cost: Number(action.peCost) || 0, message: payload.message },
+          p_resolution: { damage: result?.totalDamage || 0, healing: result?.totalHealing || 0, pe_cost: Number(action.peCost) || 0, message: payload.message, condition: action.statusEffect || null },
         });
         if (resolveError) throw resolveError;
         report(data?.message || "Ação executada.");
@@ -317,7 +317,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
           p_resolution: {
             damage: result?.totalDamage || 0,
             pe_cost: Number(request.payload?.action?.peCost) || 0,
-            message: request.payload?.message || "Ação aprovada pelo mestre.",
+            message: request.payload?.message || "Ação aprovada pelo mestre.",\n            condition: request.payload?.action?.statusEffect || null,
           },
         });
         if (rpcError) throw rpcError;
@@ -340,7 +340,11 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
     setBusy(true);
     try {
       const hp = Math.max(0, Math.min(targetCombatant.max_hp, targetCombatant.current_hp - damage + healing));
-      const { error: updateError } = await supabase.from("combatants").update({ current_hp: hp, updated_at: new Date().toISOString() }).eq("id", targetCombatant.id);
+      const snapshot = targetCombatant.sheet_snapshot && typeof targetCombatant.sheet_snapshot === "object" ? targetCombatant.sheet_snapshot : {};
+      const nextSheet = { ...snapshot, vitals: { ...(snapshot.vitals || {}), hp } };
+      const { error: characterError } = await supabase.from("characters").update({ sheet: nextSheet, updated_at: new Date().toISOString() }).eq("id", targetCombatant.character_id);
+      if (characterError) throw characterError;
+      const { error: updateError } = await supabase.from("combatants").update({ current_hp: hp, sheet_snapshot: nextSheet, updated_at: new Date().toISOString() }).eq("id", targetCombatant.id);
       if (updateError) throw updateError;
       const { error: eventError } = await supabase.from("combat_events").insert({
         encounter_id: encounter.id, actor_character_id: null, target_character_id: targetCombatant.character_id,
