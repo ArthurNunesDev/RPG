@@ -405,7 +405,8 @@ export default function SessionPage() {
     try {
       const { error: submitError } = await supabase.from("characters")
         .update({ campaign_id: campaignId, campaign_approval_status: "pending" })
-        .eq("id", character.id).eq("owner_id", user.id).is("campaign_id", null);
+        .eq("id", character.id).eq("owner_id", user.id).is("campaign_id", null)
+        .select("id").single();
       if (submitError) throw submitError;
       setNotice("Personagem enviado ao mestre. Aguarde a aprovação.");
       await loadSession(true);
@@ -428,7 +429,8 @@ export default function SessionPage() {
           campaign_approval_updated_at: new Date().toISOString(),
           campaign_approval_updated_by: user.id,
         })
-        .eq("id", character.id).eq("campaign_id", campaignId);
+        .eq("id", character.id).eq("campaign_id", campaignId)
+        .select("id").single();
       if (approvalError) throw approvalError;
       setNotice(approvalStatus === "approved" ? "Personagem aprovado e adicionado à sessão." : "Personagem recusado.");
       await loadSession(true);
@@ -484,7 +486,7 @@ export default function SessionPage() {
         sheet,
       };
       const { error: updateError } = await supabase.from("characters").update(payload)
-        .eq("id", editingCharacter.id).eq("campaign_id", campaignId);
+        .eq("id", editingCharacter.id);
       if (updateError) throw updateError;
       setEditingCharacter(null);
       setNotice("Ficha de personagem atualizada.");
