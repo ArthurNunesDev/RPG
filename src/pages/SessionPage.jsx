@@ -92,6 +92,7 @@ function CharacterEditDialog({ character, saving, error, onClose, onSave, onChan
         <label className="room-field"><span>Descrição / conceito</span><textarea value={character.concept} onChange={(event) => onChange("concept", event.target.value)} maxLength={1000} rows={4} /></label>
         <label className="room-field"><span>URL da imagem</span><input type="url" value={character.avatar_url || ""} onChange={(event) => onChange("avatar_url", event.target.value)} maxLength={1000} placeholder="https://..." /></label>
         <label className="room-field"><span>Ficha e atributos (JSON)</span><textarea value={character.sheetText || "{}"} onChange={(event) => onChange("sheetText", event.target.value)} rows={8} spellCheck={false} /></label>
+        {character.character_type === "player" && <label className="room-visibility-toggle"><input type="checkbox" checked={character.is_visible_to_players !== false} onChange={(event) => onChange("is_visible_to_players", event.target.checked)} /><span><strong>Compartilhar ficha com outros participantes</strong><small>Desative para deixar a ficha privada. Somente você e o mestre poderão visualizá-la.</small></span></label>}
         {character.character_type === "npc" && <label className="room-field"><span>Tipo de NPC</span><select value={character.npc_role || "neutral"} onChange={(event) => onChange("npc_role", event.target.value)}><option value="ally">Aliado</option><option value="enemy">Inimigo</option><option value="neutral">Neutro</option></select></label>}
         <label className="room-field"><span>Status</span><select value={character.status} onChange={(event) => onChange("status", event.target.value)}><option value="active">Ativo</option><option value="retired">Aposentado</option><option value="deceased">Morto</option></select></label>
         {error && <p className="room-error" role="alert">{error}</p>}
@@ -192,11 +193,11 @@ export default function SessionPage() {
             .order("sort_order", { ascending: true })
             .order("created_at", { ascending: true }),
           supabase.from("characters")
-            .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, avatar_url, sheet, campaign_approval_status, created_at, updated_at")
+            .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, avatar_url, sheet, is_visible_to_players, campaign_approval_status, created_at, updated_at")
             .eq("campaign_id", currentCampaignId)
             .order("updated_at", { ascending: false }),
           supabase.from("characters")
-            .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, avatar_url, sheet, campaign_approval_status, created_at, updated_at")
+            .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, avatar_url, sheet, is_visible_to_players, campaign_approval_status, created_at, updated_at")
             .eq("owner_id", user.id).is("campaign_id", null)
             .order("updated_at", { ascending: false }),
         ]);
@@ -584,6 +585,7 @@ export default function SessionPage() {
         npc_role: editingCharacter.character_type === "npc" ? editingCharacter.npc_role : null,
         avatar_url: avatarUrl || null,
         sheet,
+        is_visible_to_players: editingCharacter.is_visible_to_players !== false,
       };
       const { error: updateError } = await supabase.from("characters").update(payload)
         .eq("id", editingCharacter.id);
@@ -693,7 +695,7 @@ export default function SessionPage() {
             <div className="room-section-heading"><div><span className="eyebrow">HERÓIS E FIGURAS DO CENÁRIO</span><h2>Personagens</h2><p>{isGm ? "Aprove solicitações e gerencie livremente as fichas da campanha." : isObserver ? "Consulte os personagens liberados para esta campanha." : "Aqui aparecem apenas suas fichas. Envie um personagem ao mestre para participar da campanha."}</p></div><span className="room-count">{(isGm ? characters.filter((item) => item.campaign_id === campaignId) : characters.filter((item) => item.owner_id === user?.id)).length} registros</span></div>
             {isGm && characters.some((item) => item.campaign_id === campaignId && item.character_type === "player" && item.campaign_approval_status === "pending") && <section className="panel room-pending-panel"><div className="room-battle-heading"><div><span className="eyebrow">AGUARDANDO SUA DECISÃO</span><h3>Solicitações de personagens</h3></div><span className="room-count">{characters.filter((item) => item.campaign_id === campaignId && item.character_type === "player" && item.campaign_approval_status === "pending").length} pendentes</span></div><div className="room-character-grid">{characters.filter((item) => item.campaign_id === campaignId && item.character_type === "player" && item.campaign_approval_status === "pending").map((character) => <article className="panel room-character-card" key={character.id}><div className="room-character-symbol"><UserRound size={22} /></div><div className="room-character-copy"><div><span>Solicitação pendente</span></div><h3>{character.name}</h3><p>{character.concept || "Nenhuma descrição cadastrada."}</p></div><div className="room-approval-actions"><button className="button button-primary" type="button" disabled={busyAction === "approval:" + character.id} onClick={() => handleCharacterApproval(character, "approved")}>Aprovar</button><button className="button button-secondary" type="button" disabled={busyAction === "approval:" + character.id} onClick={() => handleCharacterApproval(character, "rejected")}>Recusar</button></div></article>)}</div></section>}
             {(() => {
-              const visibleCharacters = isGm ? characters.filter((item) => item.campaign_id === campaignId && item.campaign_approval_status !== "pending") : isObserver ? characters.filter((item) => item.campaign_id === campaignId && item.campaign_approval_status === "approved") : characters.filter((item) => item.owner_id === user?.id);
+              const visibleCharacters = isGm ? characters.filter((item) => item.campaign_id === campaignId && item.campaign_approval_status !== "pending") : isObserver ? characters.filter((item) => item.campaign_id === campaignId && item.campaign_approval_status === "approved" && item.is_visible_to_players) : characters.filter((item) => item.owner_id === user?.id || (item.campaign_id === campaignId && item.campaign_approval_status === "approved" && item.is_visible_to_players));
               const hasPendingForGm = isGm && characters.some((item) => item.campaign_id === campaignId && item.campaign_approval_status === "pending");
               return visibleCharacters.length ? <div className="room-character-grid">{visibleCharacters.map((character) => {
                 const npc = character.character_type === "npc";
