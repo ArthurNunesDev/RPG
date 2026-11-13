@@ -171,6 +171,15 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
     try {
       const { error: updateError } = await supabase.from("combatants").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", combatant.id);
       if (updateError) throw updateError;
+      if (Object.prototype.hasOwnProperty.call(patch, "turn_blocked")) {
+        const { data: refreshed, error: refreshError } = await supabase.from("combatants")
+          .select("id,is_active,turn_blocked,turn_order").eq("encounter_id", encounter.id).order("turn_order", { ascending: true });
+        if (refreshError) throw refreshError;
+        const available = (refreshed || []).filter((item) => item.is_active && !item.turn_blocked);
+        const safeIndex = available.length ? Math.min(encounter.turn_index, available.length - 1) : 0;
+        const { error: turnError } = await supabase.from("combat_encounters").update({ turn_index: safeIndex, updated_at: new Date().toISOString() }).eq("id", encounter.id);
+        if (turnError) throw turnError;
+      }
       await loadCombat(true); if (message) report(message);
     } catch (err) { fail(err, "Não foi possível atualizar o combatente."); }
     finally { setBusy(false); }
@@ -272,7 +281,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
     try {
       const result = target ? resolveActionRoll(actor, target, action, kind) : null;
       const payload = {
-        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, peCost: Number(action.peCost) || 0 },
+        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, actionCost: action.actionCost || "padrão", peCost: Number(action.peCost) || 0 },
         roll: result,
         totalDamage: result?.totalDamage || 0,
         message: result?.message || `${actor.character_name} usou ${action.name}.`,
