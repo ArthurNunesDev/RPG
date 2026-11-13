@@ -72,6 +72,8 @@ function CharacterEditDialog({ character, saving, error, onClose, onSave, onChan
         </div>
         <label className="room-field"><span>Nome</span><input value={character.name} onChange={(event) => onChange("name", event.target.value)} maxLength={80} required /></label>
         <label className="room-field"><span>Descrição / conceito</span><textarea value={character.concept} onChange={(event) => onChange("concept", event.target.value)} maxLength={1000} rows={4} /></label>
+        <label className="room-field"><span>URL da imagem</span><input type="url" value={character.avatar_url || ""} onChange={(event) => onChange("avatar_url", event.target.value)} maxLength={1000} placeholder="https://..." /></label>
+        <label className="room-field"><span>Ficha e atributos (JSON)</span><textarea value={character.sheetText || "{}"} onChange={(event) => onChange("sheetText", event.target.value)} rows={8} spellCheck={false} /></label>
         {character.character_type === "npc" && <label className="room-field"><span>Tipo de NPC</span><select value={character.npc_role || "neutral"} onChange={(event) => onChange("npc_role", event.target.value)}><option value="ally">Aliado</option><option value="enemy">Inimigo</option><option value="neutral">Neutro</option></select></label>}
         <label className="room-field"><span>Status</span><select value={character.status} onChange={(event) => onChange("status", event.target.value)}><option value="active">Ativo</option><option value="retired">Aposentado</option><option value="deceased">Morto</option></select></label>
         {error && <p className="room-error" role="alert">{error}</p>}
@@ -97,6 +99,7 @@ export default function SessionPage() {
   const { user, profile } = useAuth();
   const [session, setSession] = useState(null);
   const [campaignId, setCampaignId] = useState("");
+  const [campaignGameSystemId, setCampaignGameSystemId] = useState("");
   const [maps, setMaps] = useState([]);
   const [characters, setCharacters] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -161,7 +164,8 @@ export default function SessionPage() {
       setMessages(messageData ?? []);
 
       if (currentCampaignId) {
-        const [mapResult, characterResult, personalResult] = await Promise.all([
+        const [campaignResult, mapResult, characterResult, personalResult] = await Promise.all([
+          supabase.from("campaigns").select("game_system_id").eq("id", currentCampaignId).single(),
           supabase.from("campaign_maps")
             .select("id, campaign_id, title, description, storage_path, is_visible, sort_order, created_at")
             .eq("campaign_id", currentCampaignId)
@@ -176,9 +180,11 @@ export default function SessionPage() {
             .eq("owner_id", user.id).is("campaign_id", null)
             .order("updated_at", { ascending: false }),
         ]);
+        if (campaignResult.error) throw campaignResult.error;
         if (mapResult.error) throw mapResult.error;
         if (characterResult.error) throw characterResult.error;
         if (personalResult.error) throw personalResult.error;
+        setCampaignGameSystemId(campaignResult.data.game_system_id);
         setMaps(mapResult.data ?? []);
         setCharacters([...(characterResult.data ?? []), ...(personalResult.data ?? [])]);
       }
@@ -392,7 +398,7 @@ export default function SessionPage() {
   }
 
   async function handleSubmitCharacter(character) {
-    if (!supabase || !user?.id || isGm || isObserver || character.owner_id !== user.id || character.campaign_id || character.game_system_id !== session.gameSystemId) return;
+    if (!supabase || !user?.id || isGm || isObserver || character.owner_id !== user.id || character.campaign_id || character.game_system_id !== campaignGameSystemId) return;
     setBusyAction("submit-character:" + character.id);
     setError("");
     setNotice("");
@@ -436,7 +442,7 @@ export default function SessionPage() {
   function openCharacterEditor(character) {
     if (isObserver || (!isGm && character.owner_id !== user?.id)) return;
     setCharacterError("");
-    setEditingCharacter({ ...character });
+    setEditingCharacter({ ...character, sheetText: JSON.stringify(character.sheet && typeof character.sheet === "object" ? character.sheet : {}, null, 2) });
   }
 
   function changeCharacter(field, value) {
@@ -448,8 +454,22 @@ export default function SessionPage() {
     if (!supabase || !editingCharacter || savingCharacter) return;
     const name = editingCharacter.name.trim();
     const concept = editingCharacter.concept.trim();
-    if (!name || name.length > 80 || concept.length > 1000) {
-      setCharacterError("Confira o nome e a descrição do personagem.");
+    let sheet;
+    try {
+      sheet = JSON.parse(editingCharacter.sheetText || "{}");
+      if (!sheet || typeof sheet !== "object" || Array.isArray(sheet)) throw new Error("A ficha precisa ser um objeto JSON.");
+      if (JSON.stringify(sheet).length > 64000) throw new Error("A ficha ultrapassa o limite de 64 KB.");
+    } catch (parseError) {
+      setCharacterError(parseError instanceof Error ? parseError.message : "JSON da ficha inválido.");
+      return;
+    }
+    const avatarUrl = (editingCharacter.avatar_url || "").trim();
+    if (avatarUrl && !/^https:\/\//i.test(avatarUrl)) {
+      setCharacterError("A imagem precisa usar uma URL HTTPS.");
+      return;
+    }
+    if (!name || name.length > 80 || concept.length > 1000 || avatarUrl.length > 1000) {
+      setCharacterError("Confira o nome, a descrição e a URL da imagem.");
       return;
     }
     setSavingCharacter(true);
@@ -460,6 +480,8 @@ export default function SessionPage() {
         concept,
         status: editingCharacter.status,
         npc_role: editingCharacter.character_type === "npc" ? editingCharacter.npc_role : null,
+        avatar_url: avatarUrl || null,
+        sheet,
       };
       const { error: updateError } = await supabase.from("characters").update(payload)
         .eq("id", editingCharacter.id).eq("campaign_id", campaignId);
@@ -580,7 +602,7 @@ export default function SessionPage() {
                   <div className={npc ? "room-character-symbol npc" : "room-character-symbol"}>{character.avatar_url ? <img className="room-character-avatar" src={character.avatar_url} alt="" /> : npc ? <Shield size={22} /> : <UserRound size={22} />}</div>
                   <div className="room-character-copy"><div><span>{roleLabel}</span><small>{character.campaign_id ? label : "Pessoal"}</small></div><h3>{character.name}</h3><p>{character.concept || "Nenhuma descrição cadastrada."}</p><small>{character.owner_id === user?.id ? "Seu personagem" : npc ? "NPC da campanha" : "Personagem de jogador"}</small></div>
                   {canEdit && <button className="button button-secondary room-edit-character" type="button" onClick={() => openCharacterEditor(character)}><Eye size={14} /> Editar ficha</button>}
-                  {!isGm && !isObserver && !character.campaign_id && character.character_type === "player" && character.game_system_id === session.gameSystemId && <button className="button button-primary room-submit-character" type="button" disabled={busyAction === "submit-character:" + character.id} onClick={() => handleSubmitCharacter(character)}>{busyAction === "submit-character:" + character.id ? "Enviando..." : "Enviar ao mestre"}</button>}
+                  {!isGm && !isObserver && !character.campaign_id && character.character_type === "player" && character.game_system_id === campaignGameSystemId && <button className="button button-primary room-submit-character" type="button" disabled={busyAction === "submit-character:" + character.id} onClick={() => handleSubmitCharacter(character)}>{busyAction === "submit-character:" + character.id ? "Enviando..." : "Enviar ao mestre"}</button>}
                 </article>;
               })}</div> : <div className="panel room-empty"><UserRound size={28} /><strong>{isGm ? "Nenhum personagem na campanha" : "Nenhum personagem para mostrar"}</strong><p>{isGm ? "Quando os jogadores enviarem fichas, elas aparecerão para aprovação." : isObserver ? "Os personagens aprovados aparecerão aqui." : "Crie uma ficha na área Personagens e envie-a ao mestre para aprovação."}</p></div>;
             })()}
