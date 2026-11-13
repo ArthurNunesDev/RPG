@@ -129,14 +129,16 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     return () => { supabase.removeChannel(channel); };
   }, [sessionId, loadCombat]);
 
-  const isOrderSystem = systemSlug === "ordem-paranormal";\n  const approvedCharacters = useMemo(() => characters.filter((item) =>
+  const isOrderSystem = systemSlug === "ordem-paranormal";
+  const approvedCharacters = useMemo(() => characters.filter((item) =>
     item.campaign_id === campaignId && item.status === "active" &&
     (item.campaign_approval_status === "approved" || (isGm && item.character_type === "npc" && item.owner_id === userId))
   ), [characters, campaignId, isGm, userId]);
   const sortedCombatants = useMemo(() => [...combatants].sort((a, b) => a.turn_order - b.turn_order), [combatants]);
   const eligibleCombatants = useMemo(() => sortedCombatants.filter((item) => item.is_active && !item.turn_blocked), [sortedCombatants]);
   const currentCombatant = eligibleCombatants[encounter?.turn_index ?? 0] ?? null;
-  const pendingRequests = requests.filter((request) => request.status === "pending");\n  const availableToAdd = approvedCharacters.filter((character) => !combatants.some((item) => item.character_id === character.id));
+  const pendingRequests = requests.filter((request) => request.status === "pending");
+  const availableToAdd = approvedCharacters.filter((character) => !combatants.some((item) => item.character_id === character.id));
   const actorForControls = sortedCombatants.find((item) => item.character_id === selectedActor) ?? currentCombatant;
   const actorAttacks = getActions(actorForControls, "attacks");
   const actorAbilities = getActions(actorForControls, "abilities");
