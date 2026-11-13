@@ -48,6 +48,7 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
+  const [campaignToDelete, setCampaignToDelete] = useState(null);
   const [joinPin, setJoinPin] = useState("");
   const [joining, setJoining] = useState(false);
   const [query, setQuery] = useState("");
@@ -229,11 +230,6 @@ export default function CampaignsPage() {
 
   async function handleDelete(campaign) {
     if (!supabase || !user?.id || campaign.owner_id !== user.id) return;
-    const confirmed = window.confirm(
-      `Excluir "${campaign.title}"? As mensagens e os vínculos de participantes serão removidos. Personagens vinculados serão mantidos fora da campanha.`,
-    );
-    if (!confirmed) return;
-
     setDeletingId(campaign.id);
     setError("");
     setNotice("");
@@ -250,7 +246,8 @@ export default function CampaignsPage() {
       if (!data?.length) throw new Error("A campanha não foi encontrada ou você não tem permissão para excluí-la.");
 
       setCampaigns((current) => current.filter((item) => item.id !== campaign.id));
-      setNotice("Campanha excluída.");
+      setNotice("A campanha foi excluída com sucesso.");
+      setCampaignToDelete(null);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir a campanha.");
     } finally {
@@ -366,7 +363,7 @@ export default function CampaignsPage() {
                   <div className="campaign-card-actions">
                     <Link className="button button-primary" to={`/campaigns/${campaign.id}`}>Abrir campanha <ArrowUpRight size={14} /></Link>
                     {ownCampaign && <button className="button button-secondary" type="button" onClick={() => openEditForm(campaign)}><Pencil size={14} /> Editar</button>}
-                    {ownCampaign && <button className="icon-button campaign-delete-button" type="button" onClick={() => handleDelete(campaign)} disabled={deletingId === campaign.id} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>}
+                    {ownCampaign && <button className="icon-button campaign-delete-button" type="button" onClick={() => { setError(""); setCampaignToDelete(campaign); }} disabled={deletingId === campaign.id} aria-label={`Excluir campanha ${campaign.title}`} title="Excluir"><Trash2 size={15} /></button>}
                   </div>
                   {!ownCampaign && role === "observer" && <div className="campaign-observer-note"><Eye size={13} /> Acesso de observador</div>}
                 </div>
@@ -383,5 +380,29 @@ export default function CampaignsPage() {
         </div>
       )}
     </section>
+      {campaignToDelete && (
+        <div className="campaign-delete-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingId) setCampaignToDelete(null); }}>
+          <section className="campaign-delete-dialog panel" role="alertdialog" aria-modal="true" aria-labelledby="campaign-delete-title" aria-describedby="campaign-delete-description">
+            <div className="campaign-delete-dialog-icon"><Trash2 size={22}/></div>
+            <p className="eyebrow">AÇÃO PERMANENTE</p>
+            <h2 id="campaign-delete-title">Excluir campanha?</h2>
+            <p id="campaign-delete-description">Você está prestes a excluir <strong>{campaignToDelete.title}</strong>. Essa ação não poderá ser desfeita.</p>
+            <div className="campaign-delete-warning">
+              <strong>O que será removido</strong>
+              <ul>
+                <li>A campanha e seus dados de configuração.</li>
+                <li>Os vínculos dos participantes e o acesso à sessão.</li>
+                <li>As mensagens e os recursos associados, conforme as regras de exclusão do sistema.</li>
+              </ul>
+              <small>Personagens vinculados serão mantidos fora da campanha.</small>
+            </div>
+            {error && <p className="campaigns-error" role="alert">{error}</p>}
+            <div className="campaign-delete-actions">
+              <button className="button button-secondary" type="button" onClick={() => setCampaignToDelete(null)} disabled={!!deletingId}>Manter campanha</button>
+              <button className="button campaign-delete-confirm" type="button" onClick={() => handleDelete(campaignToDelete)} disabled={!!deletingId}>{deletingId ? "Excluindo..." : <><Trash2 size={14}/> Excluir definitivamente</>}</button>
+            </div>
+          </section>
+        </div>
+      )}
   );
 }
