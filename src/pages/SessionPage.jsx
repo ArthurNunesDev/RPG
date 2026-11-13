@@ -479,6 +479,12 @@ export default function SessionPage() {
     if (!supabase || !isGm || !campaignId) return;
     setError("");
     if (item.is_visible) {
+      if (mapState?.active_map_id === item.id && mapState.is_open) {
+        const { error: closeError } = await supabase.from("session_map_states")
+          .update({ active_map_id: null, is_open: false, updated_by: user.id, updated_at: new Date().toISOString() })
+          .eq("session_id", sessionId);
+        if (closeError) { setError(closeError.message); return; }
+      }
       const { error: hideError } = await supabase.from("campaign_maps")
         .update({ is_visible: false }).eq("id", item.id).eq("campaign_id", campaignId);
       if (hideError) setError(hideError.message);
