@@ -259,6 +259,7 @@ export default function CampaignsPage() {
   const participatingCount = campaigns.length - hostedCount;
 
   return (
+    <>
     <section className="campaigns-page">
       <div className="campaigns-heading">
         <div className="campaigns-heading-icon"><Swords size={26} strokeWidth={1.6} /></div>
@@ -404,5 +405,6 @@ export default function CampaignsPage() {
           </section>
         </div>
       )}
+    </>
   );
 }
