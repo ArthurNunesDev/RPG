@@ -75,7 +75,7 @@ function normalizeCombatActions(value, kind) {
     : { id: item.id || `${kind}-${index}`, name: item.name || "", description: item.description || "", testFormula: item.testFormula || "1d20", damageFormula: item.damageFormula || "", criticalExtraFormula: item.criticalExtraFormula || "", peCost: Number(item.peCost) || 0, actionCost: item.actionCost || "padrão", range: item.range || "", skill: item.skill || "Luta" })
     .filter((item) => item.name || item.description);
   if (typeof value === "string" && value.trim()) return value.split("\\n").filter(Boolean).map((name, index) => ({
-    id: `${kind}-legacy-${index}`, name, description: "", testFormula: "1d20", damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", peCost: 0, actionCost: "padrão", range: "", skill: "Luta",
+    id: `${kind}-legacy-${index}`, name, description: "", testFormula: "1d20", damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", healingFormula: "", effectType: kind === "attack" ? "damage" : "utility", statusEffect: "", peCost: 0, actionCost: "padrão", range: "", skill: "Luta",
   }));
   return [];
 }
@@ -96,6 +96,9 @@ function CombatActionEditor({ title, actions, kind, onChange }) {
         <Field label="Rolagem para acertar" value={action.testFormula} onChange={(v) => update(index, "testFormula", v)} placeholder="1d20" />
         {kind === "attack" && <Field label="Dano" value={action.damageFormula} onChange={(v) => update(index, "damageFormula", v)} placeholder="2d10" />}
         {kind === "attack" && <Field label="Dano adicional no crítico" value={action.criticalExtraFormula} onChange={(v) => update(index, "criticalExtraFormula", v)} placeholder="1d4" />}
+        {kind === "ability" && <Field label="Tipo de efeito (damage, healing, utility)" value={action.effectType} onChange={(v) => update(index, "effectType", v)} placeholder="utility" />}
+        {kind === "ability" && <Field label="Fórmula de cura" value={action.healingFormula} onChange={(v) => update(index, "healingFormula", v)} placeholder="2d6" />}
+        {kind === "ability" && <Field label="Condição / efeito aplicado" value={action.statusEffect} onChange={(v) => update(index, "statusEffect", v)} placeholder="Atordoado, vulnerável..." />}
         <Field label="Custo em PE" type="number" min={0} value={action.peCost} onChange={(v) => update(index, "peCost", v)} />
         <Field label="Custo de ação" value={action.actionCost} onChange={(v) => update(index, "actionCost", v)} placeholder="padrão, movimento, livre..." />
         <Field label="Alcance" value={action.range} onChange={(v) => update(index, "range", v)} />
