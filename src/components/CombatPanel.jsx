@@ -19,6 +19,17 @@ function getSkillBonus(sheet, skillName) {
   return Number(skill.training || 0) + Number(skill.bonus || 0) + Number(skill.other || 0);
 }
 function resolveActionRoll(actor, target, action, kind) {
+  const effectType = action.effectType || (kind === "attack" ? "damage" : "utility");
+  if (kind === "ability" && effectType === "healing") {
+    if (!target) throw new Error("Selecione o alvo que receberá a cura.");
+    const healing = action.healingFormula ? rollDice(action.healingFormula) : { total: 0, rolls: [] };
+    return { outcome: "healing", healing, totalHealing: healing.total, message: `${action.name}: cura de ${healing.total} PV.` };
+  }
+  if (kind === "ability" && effectType === "utility") {
+    const test = rollDice(action.testFormula || "1d20");
+    return { outcome: "utility", attackRoll: test, totalDamage: 0, totalHealing: 0, message: `${action.name}: resultado ${test.total}.` };
+  }
+  if (!target) throw new Error("Selecione um alvo para esta ação.");
   const attackRoll = rollDice(action.testFormula || "1d20");
   const bonus = getSkillBonus(actor.sheet_snapshot, action.skill || "Luta");
   const totalAttack = { ...attackRoll, total: attackRoll.total + bonus };
@@ -26,21 +37,19 @@ function resolveActionRoll(actor, target, action, kind) {
   const hit = !disaster && totalAttack.total >= Number(target.defense || 10);
   let damage = null;
   let criticalExtra = null;
-  if (hit && kind === "attack" && action.damageFormula) {
+  if (hit && action.damageFormula) {
     damage = rollDice(action.damageFormula);
     if (damage.maximum && action.criticalExtraFormula) criticalExtra = rollDice(action.criticalExtraFormula);
   }
   return {
     outcome: disaster ? "disaster" : !hit ? "miss" : damage?.maximum ? "critical" : "hit",
-    attackRoll: { ...totalAttack, bonus },
-    defense: Number(target.defense || 10),
-    damage,
-    criticalExtra,
-    totalDamage: (damage?.total || 0) + (criticalExtra?.total || 0),
+    attackRoll: { ...totalAttack, bonus }, defense: Number(target.defense || 10),
+    damage, criticalExtra, totalDamage: (damage?.total || 0) + (criticalExtra?.total || 0),
+    totalHealing: 0,
     message: disaster ? "Desastre: resultado mínimo no dado. O mestre define a consequência."
       : !hit ? "Ataque não superou a defesa do alvo."
       : damage?.maximum ? "Acerto crítico: dano máximo no dado."
-      : kind === "attack" ? "Ataque acertou." : "Habilidade executada.",
+      : kind === "attack" ? "Ataque acertou." : "Habilidade acertou.",
   };
 }
 function describeEvent(event) {
@@ -255,7 +264,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
   };
 
   const submitAction = async (actor, target, action, kind, asGm = false) => {
-    if (!encounter || !actor || !action || (kind === "attack" && !target) || busy) return;
+    if (!encounter || !actor || !action || ((kind === "attack" || (kind === "ability" && action.effectType !== "utility")) && !target) || busy) return;
     if (!asGm && (!isMyTurn || encounter.turns_paused || actor.owner_id !== userId || actor.turn_blocked || actor.turn_control !== "player")) {
       setError("Você não pode agir neste turno. Aguarde a liberação do mestre."); return;
     }
@@ -263,7 +272,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
     try {
       const result = target ? resolveActionRoll(actor, target, action, kind) : null;
       const payload = {
-        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, peCost: Number(action.peCost) || 0 },
+        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, peCost: Number(action.peCost) || 0 },
         roll: result,
         totalDamage: result?.totalDamage || 0,
         message: result?.message || `${actor.character_name} usou ${action.name}.`,
@@ -277,7 +286,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
       if (asGm) {
         const { data, error: resolveError } = await supabase.rpc("resolve_combat_action", {
           p_request_id: createdRequest.id,
-          p_resolution: { damage: result?.totalDamage || 0, pe_cost: Number(action.peCost) || 0, message: payload.message },
+          p_resolution: { damage: result?.totalDamage || 0, healing: result?.totalHealing || 0, pe_cost: Number(action.peCost) || 0, message: payload.message },
         });
         if (resolveError) throw resolveError;
         report(data?.message || "Ação executada.");
@@ -379,13 +388,13 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
             <label className="room-combat-field"><span>Combatente para gerenciar</span><select value={selectedActor} onChange={(event)=>{setSelectedActor(event.target.value);setSelectedAction("");}}><option value="">Selecione</option>{sortedCombatants.map((item)=><option key={item.id} value={item.character_id}>{item.character_name}</option>)}</select></label>
             {actorForControls && <div className="room-combat-actions-row"><label><span>Dano</span><input type="number" min="0" value={manualDamage} onChange={(e)=>setManualDamage(e.target.value)}/></label><label><span>Cura</span><input type="number" min="0" value={manualHealing} onChange={(e)=>setManualHealing(e.target.value)}/></label><button className="button button-secondary" type="button" disabled={busy || !targetCombatant || (!Number(manualDamage)&&!Number(manualHealing))} onClick={applyManualChange}>Aplicar ao alvo</button></div>}
             <label className="room-combat-field"><span>Alvo para dano ou cura</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione o alvo</option>{sortedCombatants.map((item)=><option key={item.id} value={item.character_id}>{item.character_name}</option>)}</select></label>
-            {actorForControls && <div className="room-combat-actions-row"><label><span>Ação do combatente</span><select value={selectedAction} onChange={(e)=>setSelectedAction(e.target.value)}><option value="">Selecione ataque/habilidade</option>{actorAttacks.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Ataque · {a.name}</option>)}{actorAbilities.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Habilidade · {a.name}</option>)}</select></label><button className="button button-primary" type="button" disabled={busy || !selectedActionObject || (actorAttacks.includes(selectedActionObject)&&!targetCombatant)} onClick={()=>submitAction(actorForControls,targetCombatant,selectedActionObject,actorAttacks.includes(selectedActionObject)?"attack":"ability",true)}>Executar ação</button></div>}
+            {actorForControls && <div className="room-combat-actions-row"><label><span>Ação do combatente</span><select value={selectedAction} onChange={(e)=>setSelectedAction(e.target.value)}><option value="">Selecione ataque/habilidade</option>{actorAttacks.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Ataque · {a.name}</option>)}{actorAbilities.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Habilidade · {a.name}</option>)}</select></label><button className="button button-primary" type="button" disabled={busy || !selectedActionObject || (actorAttacks.includes(selectedActionObject)&&!targetCombatant)||(selectedActionObject?.effectType!=="utility"&&actorAbilities.includes(selectedActionObject)&&!targetCombatant)} onClick={()=>submitAction(actorForControls,targetCombatant,selectedActionObject,actorAttacks.includes(selectedActionObject)?"attack":"ability",true)}>Executar ação</button></div>}
             <button className="button button-secondary" type="button" disabled={busy || !eligibleCombatants.length} onClick={()=>advanceTurn(true)}><SkipForward size={14}/> Pular turno atual</button>
           </div>}
           {!isGm && currentCombatant?.owner_id===userId && currentCombatant.turn_control==="player" && !currentCombatant.turn_blocked && !encounter.turns_paused && !isObserver && <div className="panel room-player-actions">
             <span className="eyebrow">SEU TURNO</span><h3>Escolha sua ação</h3>
             <label className="room-combat-field"><span>Alvo</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione o alvo</option>{sortedCombatants.filter((item)=>item.character_id!==currentCombatant.character_id&&item.is_active&&!item.turn_blocked).map((item)=><option key={item.id} value={item.character_id}>{item.character_name} · {item.current_hp}/{item.max_hp} PV</option>)}</select></label>
-            <div className="room-combat-action-cards">{[...getActions(currentCombatant,"attacks").map((a)=>({...a,kind:"attack"})),...getActions(currentCombatant,"abilities").map((a)=>({...a,kind:"ability"}))].map((action,index)=><article key={action.id||index}><div><strong>{action.name}</strong><small>{action.kind==="attack"?(action.damageFormula||"Sem dano definido"):"Habilidade"} · {Number(action.peCost)||0} PE</small><p>{action.description}</p></div><button className="button button-secondary" type="button" disabled={busy || (action.kind==="attack"&&!targetCombatant)} onClick={()=>submitAction(currentCombatant,targetCombatant,action,action.kind,false)}>Usar</button></article>)}</div>
+            <div className="room-combat-action-cards">{[...getActions(currentCombatant,"attacks").map((a)=>({...a,kind:"attack"})),...getActions(currentCombatant,"abilities").map((a)=>({...a,kind:"ability"}))].map((action,index)=><article key={action.id||index}><div><strong>{action.name}</strong><small>{action.kind==="attack"?(action.damageFormula||"Sem dano definido"):"Habilidade"} · {Number(action.peCost)||0} PE</small><p>{action.description}</p></div><button className="button button-secondary" type="button" disabled={busy || ((action.kind==="attack"||(action.kind==="ability"&&action.effectType!=="utility"))&&!targetCombatant)} onClick={()=>submitAction(currentCombatant,targetCombatant,action,action.kind,false)}>Usar</button></article>)}</div>
             {!getActions(currentCombatant,"attacks").length&&!getActions(currentCombatant,"abilities").length&&<p className="room-readonly-note">Sua ficha ainda não possui ataques ou habilidades cadastrados.</p>}
           </div>}
           {isObserver && <p className="room-readonly-note">Você está acompanhando o combate como observador.</p>}
