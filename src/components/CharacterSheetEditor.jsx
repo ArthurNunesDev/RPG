@@ -246,7 +246,8 @@ export default function CharacterSheetEditor({ systemName, value, onChange, disa
         <Field label="Crédito máximo" value={sheet.progression?.credit} onChange={(v) => update("progression.credit", v)} />
         <Field label="Limite de itens" value={sheet.progression?.maxItems} onChange={(v) => update("progression.maxItems", v)} />
         <Field label="Limite de carga" value={sheet.progression?.loadLimit} onChange={(v) => update("progression.loadLimit", v)} />
-      </Section>\n      <CombatActionEditor title="Ataques" kind="attack" actions={normalizeCombatActions(sheet.attacks, "attack")} onChange={(v) => update("attacks", v)} />
+      </Section>
+      <CombatActionEditor title="Ataques" kind="attack" actions={normalizeCombatActions(sheet.attacks, "attack")} onChange={(v) => update("attacks", v)} />
       <CombatActionEditor title="Habilidades e poderes" kind="ability" actions={normalizeCombatActions(sheet.abilities, "ability")} onChange={(v) => update("abilities", v)} />
       <Section title="Recursos e anotações">
         <TextField label="Rituais" value={sheet.rituals} onChange={(v) => update("rituals", v)} />
