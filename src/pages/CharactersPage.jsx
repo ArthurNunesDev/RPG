@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import CharacterSheetEditor, { createCharacterSheet } from "../components/CharacterSheetEditor.jsx";
 import "../styles/characters.css";
 
 const emptyForm = {
@@ -44,6 +45,7 @@ export default function CharactersPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [sheet, setSheet] = useState({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -60,7 +62,7 @@ export default function CharactersPage() {
       const [characterResult, campaignResult, systemResult] = await Promise.all([
         supabase
           .from("characters")
-          .select("id, owner_id, campaign_id, game_system_id, name, concept, character_type, npc_role, status, created_at, updated_at, game_systems(name), campaigns(title)")
+          .select("id, owner_id, campaign_id, game_system_id, name, concept, sheet, character_type, npc_role, status, created_at, updated_at, game_systems(name), campaigns(title)")
           .order("updated_at", { ascending: false }),
         supabase
           .from("campaigns")
@@ -115,7 +117,9 @@ export default function CharactersPage() {
 
   function openCreateForm() {
     setEditingId("");
-    setForm({ ...emptyForm, gameSystemId: systems.find((system) => system.is_official)?.id ?? "" });
+    const defaultSystem = systems.find((system) => system.is_official) ?? systems[0];
+    setForm({ ...emptyForm, gameSystemId: defaultSystem?.id ?? "" });
+    setSheet(createCharacterSheet(defaultSystem?.name ?? ""));
     setError("");
     setNotice("");
     setFormOpen(true);
