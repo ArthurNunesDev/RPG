@@ -498,6 +498,38 @@ export default function SessionPage() {
     await loadSession(true);
   }
 
+  async function handleOpenMap(item) {
+    if (!supabase || !isGm || !campaignId || !user?.id) return;
+    const closing = mapState?.is_open && mapState.active_map_id === item.id;
+    const { error: stateError } = await supabase.from("session_map_states").upsert({
+      session_id: sessionId, campaign_id: campaignId, active_map_id: closing ? null : item.id,
+      is_open: !closing, updated_by: user.id, updated_at: new Date().toISOString(),
+    }, { onConflict: "session_id" });
+    if (stateError) { setError(stateError.message); return; }
+    setNotice(closing ? "Mapa fechado para os participantes." : "Mapa aberto. Os participantes podem solicitar acesso.");
+    await loadSession(true);
+  }
+
+  async function handleRequestMapAccess(item) {
+    if (!supabase || !user?.id || isGm || !mapState?.is_open || mapState.active_map_id !== item.id) return;
+    if (mapRequests.some((request) => request.map_id === item.id && request.user_id === user.id && ["pending", "approved"].includes(request.status))) return;
+    const { error: requestError } = await supabase.from("session_map_access_requests").insert({ session_id: sessionId, campaign_id: campaignId, map_id: item.id, user_id: user.id, status: "pending" });
+    if (requestError) setError(requestError.message);
+    else { setNotice("Solicitação enviada ao mestre."); await loadSession(true); }
+  }
+
+  async function handleDecideMapAccess(request, status) {
+    if (!supabase || !isGm || !["approved", "rejected"].includes(status)) return;
+    const { error: decisionError } = await supabase.from("session_map_access_requests").update({ status, decided_at: new Date().toISOString(), decided_by: user.id }).eq("id", request.id);
+    if (decisionError) setError(decisionError.message);
+    else { setNotice(status === "approved" ? "Acesso ao mapa aprovado." : "Solicitação de acesso recusada."); await loadSession(true); }
+  }
+
+  async function handleCreateMapAnnotation(annotationType, payload) {
+    if (!supabase || !isGm || !activeMap || !mapState?.is_open) return;
+    const { error: annotationError } = await supabase.from("session_map_annotations").insert({ session_id: sessionId, campaign_id: campaignId, map_id: activeMap.id, created_by: user.id, annotation_type: annotationType, payload });
+    if (annotationError) { setError(annotationError.message); throw annotationError; }
+  }
   async function handleDeleteMap(item) {
     if (!supabase || !isGm) return;
     if (!window.confirm('Excluir o mapa "' + item.title + '" da campanha?')) return;
