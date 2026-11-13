@@ -96,10 +96,12 @@ function CombatActionEditor({ title, actions, kind, onChange }) {
         <Field label="Rolagem para acertar" value={action.testFormula} onChange={(v) => update(index, "testFormula", v)} placeholder="1d20" />
         {kind === "attack" && <Field label="Dano" value={action.damageFormula} onChange={(v) => update(index, "damageFormula", v)} placeholder="2d10" />}
         {kind === "attack" && <Field label="Dano adicional no crítico" value={action.criticalExtraFormula} onChange={(v) => update(index, "criticalExtraFormula", v)} placeholder="1d4" />}
-        {kind === "ability" && <Field label="Tipo de efeito (damage, healing, utility)" value={action.effectType} onChange={(v) => update(index, "effectType", v)} placeholder="utility" />
-        <Field label="Ação (ability, dodge, counterattack, defend)" value={action.actionType} onChange={(v) => update(index, "actionType", v)} placeholder="ability" />}
-        {kind === "ability" && <Field label="Fórmula de cura" value={action.healingFormula} onChange={(v) => update(index, "healingFormula", v)} placeholder="2d6" />}
-        {kind === "ability" && <Field label="Condição / efeito aplicado" value={action.statusEffect} onChange={(v) => update(index, "statusEffect", v)} placeholder="Atordoado, vulnerável..." />}
+        {kind === "ability" && <>
+          <Field label="Tipo de efeito (damage, healing, utility)" value={action.effectType} onChange={(v) => update(index, "effectType", v)} placeholder="utility" />
+          <Field label="Ação (ability, dodge, counterattack, defend)" value={action.actionType} onChange={(v) => update(index, "actionType", v)} placeholder="ability" />
+          <Field label="Fórmula de cura" value={action.healingFormula} onChange={(v) => update(index, "healingFormula", v)} placeholder="2d6" />
+          <Field label="Condição / efeito aplicado" value={action.statusEffect} onChange={(v) => update(index, "statusEffect", v)} placeholder="Atordoado, vulnerável..." />
+        </>}
         <Field label="Custo em PE" type="number" min={0} value={action.peCost} onChange={(v) => update(index, "peCost", v)} />
         <Field label="Custo de ação" value={action.actionCost} onChange={(v) => update(index, "actionCost", v)} placeholder="padrão, movimento, livre..." />
         <Field label="Alcance" value={action.range} onChange={(v) => update(index, "range", v)} />
