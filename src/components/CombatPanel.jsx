@@ -347,7 +347,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     try {
       const result = target || (kind === "ability" && action.effectType === "utility") ? resolveActionRoll(actor, target, action, kind) : null;
       const payload = {
-        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, statusEffect: action.statusEffect, actionCost: action.actionCost || "padrão", peCost: Number(action.peCost) || 0 },
+        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, actionType: action.actionType, statusEffect: action.statusEffect, actionCost: action.actionCost || "padrão", peCost: Number(action.peCost) || 0 },
         roll: result,
         totalDamage: result?.totalDamage || 0,
         message: result?.message || `${actor.character_name} usou ${action.name}.`,
@@ -355,7 +355,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
       const { data: createdRequest, error: insertError } = await supabase.from("combat_action_requests").insert({
         encounter_id: encounter.id, actor_character_id: actor.character_id,
         target_character_id: target?.character_id ?? null, action_id: action.id || action.name,
-        action_type: kind === "attack" ? "attack" : "ability", payload, requested_by: userId,
+        action_type: kind === "attack" ? "attack" : (["dodge","counterattack","defend"].includes(action.actionType) ? action.actionType : "ability"), payload, requested_by: userId,
       }).select("id").single();
       if (insertError) throw insertError;
       if (asGm) {
@@ -480,7 +480,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
           {!isGm && currentCombatant?.owner_id===userId && currentCombatant.turn_control==="player" && !currentCombatant.turn_blocked && !encounter.turns_paused && !isObserver && <div className="panel room-player-actions">
             <span className="eyebrow">SEU TURNO</span><h3>Escolha sua ação</h3>
             <label className="room-combat-field"><span>Alvo</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione o alvo</option>{sortedCombatants.filter((item)=>item.character_id!==currentCombatant.character_id&&item.is_active&&!item.turn_blocked).map((item)=><option key={item.id} value={item.character_id}>{item.character_name} · {item.current_hp}/{item.max_hp} PV</option>)}</select></label>
-            <div className="room-combat-action-cards">{[...getActions(currentCombatant,"attacks").map((a)=>({...a,kind:"attack"})),...getActions(currentCombatant,"abilities").map((a)=>({...a,kind:"ability"}))].map((action,index)=><article key={action.id||index}><div><strong>{action.name}</strong><small>{action.kind==="attack"?(action.damageFormula||"Sem dano definido"):"Habilidade"} · {Number(action.peCost)||0} PE</small><p>{action.description}</p></div><button className="button button-secondary" type="button" disabled={busy || ((action.kind==="attack"||(action.kind==="ability"&&(action.effectType!=="utility"||action.statusEffect)))&&!targetCombatant)} onClick={()=>submitAction(currentCombatant,targetCombatant,action,action.kind,false)}>Usar</button></article>)}</div>
+            <div className="room-combat-action-cards">{[...getActions(currentCombatant,"attacks").map((a)=>({...a,kind:"attack"})),...getActions(currentCombatant,"abilities").map((a)=>({...a,kind:"ability"}))].map((action,index)=><article key={action.id||index}><div><strong>{action.name}</strong><small>{action.kind==="attack"?(action.damageFormula||"Sem dano definido"):(action.actionType==="dodge"?"Esquiva":action.actionType==="counterattack"?"Contra-ataque":action.actionType==="defend"?"Defesa":"Habilidade")} · {Number(action.peCost)||0} PE</small><p>{action.description}</p></div><button className="button button-secondary" type="button" disabled={busy || ((action.kind==="attack"||(action.kind==="ability"&&(action.effectType!=="utility"||action.statusEffect)))&&!targetCombatant)} onClick={()=>submitAction(currentCombatant,targetCombatant,action,action.kind,false)}>Usar</button></article>)}</div>
             {!getActions(currentCombatant,"attacks").length&&!getActions(currentCombatant,"abilities").length&&<p className="room-readonly-note">Sua ficha ainda não possui ataques ou habilidades cadastrados.</p>}
           </div>}
           {isObserver && <p className="room-readonly-note">Você está acompanhando o combate como observador.</p>}
