@@ -67,7 +67,8 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [selectedActor, setSelectedActor] = useState("");\n  const [selectedNewCombatant, setSelectedNewCombatant] = useState("");
+  const [selectedActor, setSelectedActor] = useState("");
+  const [selectedNewCombatant, setSelectedNewCombatant] = useState("");
   const [selectedTarget, setSelectedTarget] = useState("");
   const [selectedAction, setSelectedAction] = useState("");
   const [manualDamage, setManualDamage] = useState("0");
