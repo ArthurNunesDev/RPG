@@ -111,7 +111,8 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
       .on("postgres_changes", { event: "*", schema: "public", table: "combat_encounters", filter: "session_id=eq." + sessionId }, () => loadCombat(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "combatants" }, () => loadCombat(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "combat_events" }, () => loadCombat(true))
-      .on("postgres_changes", { event: "*", schema: "public", table: "combat_action_requests" }, () => loadCombat(true))\n      .on("postgres_changes", { event: "*", schema: "public", table: "combatant_sheets" }, () => loadCombat(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "combat_action_requests" }, () => loadCombat(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "combatant_sheets" }, () => loadCombat(true))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [sessionId, loadCombat]);
