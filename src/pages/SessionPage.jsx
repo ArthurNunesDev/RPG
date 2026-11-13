@@ -507,10 +507,19 @@ export default function SessionPage() {
   async function handleOpenMap(item) {
     if (!supabase || !isGm || !campaignId || !user?.id) return;
     const closing = mapState?.is_open && mapState.active_map_id === item.id;
-    const { error: stateError } = await supabase.from("session_map_states").upsert({
-      session_id: sessionId, campaign_id: campaignId, active_map_id: closing ? null : item.id,
-      is_open: !closing, view_zoom: 1, view_offset_x: 0, view_offset_y: 0, updated_by: user.id, updated_at: new Date().toISOString(),
-    }, { onConflict: "session_id" });
+    const statePayload = {
+      active_map_id: closing ? null : item.id,
+      is_open: !closing,
+      view_zoom: 1,
+      view_offset_x: 0,
+      view_offset_y: 0,
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    };
+    const stateQuery = mapState
+      ? supabase.from("session_map_states").update(statePayload).eq("session_id", sessionId)
+      : supabase.from("session_map_states").insert({ session_id: sessionId, campaign_id: campaignId, ...statePayload });
+    const { error: stateError } = await stateQuery;
     if (stateError) { setError(stateError.message); return; }
     setNotice(closing ? "Mapa fechado para os participantes." : "Mapa aberto. Os participantes podem solicitar acesso.");
     await loadSession(true);
