@@ -110,6 +110,7 @@ export default function SessionPage() {
   const [onlineIds, setOnlineIds] = useState([]);
   const [activeSection, setActiveSection] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [draft, setDraft] = useState("");
   const [mapTitle, setMapTitle] = useState("");
   const [mapDescription, setMapDescription] = useState("");
@@ -413,8 +414,8 @@ export default function SessionPage() {
   }
 
   async function handleLeaveSession() {
-    if (!supabase || busyAction) return;
-    if (!window.confirm("Sair desta mesa? O PIN continuará ativo e você poderá entrar novamente quando quiser.")) return;
+    if (!supabase || busyAction || isGm) return;
+    setShowLeaveDialog(false);
     setBusyAction("leave");
     setError("");
     try {
@@ -707,7 +708,7 @@ export default function SessionPage() {
         </nav>
         <div className="room-sidebar-bottom">
           <div className="room-online-summary"><span className="room-online-indicator" />{onlineIds.length} online agora</div>
-          <button className="room-leave-button" type="button" onClick={handleLeaveSession} disabled={Boolean(busyAction)}>
+          <button className="room-leave-button" type="button" onClick={() => setShowLeaveDialog(true)} disabled={Boolean(busyAction)}>
             <LogOut size={15} />{busyAction === "leave" ? "Saindo..." : "Sair da sessão"}
           </button>
           <Link to={"/campaigns/" + (campaignId || "")} className="room-back-campaign"><ArrowLeft size={14} /> Voltar à campanha</Link>
@@ -840,6 +841,26 @@ export default function SessionPage() {
         </div>
       </section>
 
+      {showLeaveDialog && <div className="room-dialog-backdrop room-leave-backdrop" role="presentation" onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busyAction) setShowLeaveDialog(false);
+      }}>
+        <section className="panel room-leave-dialog" role="alertdialog" aria-modal="true" aria-labelledby="room-leave-title" aria-describedby="room-leave-description">
+          <div className="room-leave-dialog-icon"><LogOut size={22} /></div>
+          <span className="eyebrow">{isGm ? "AÇÃO DO MESTRE" : "SESSÃO DA CAMPANHA"}</span>
+          <h2 id="room-leave-title">{isGm ? "Você não pode sair desta sessão" : "Sair desta sessão?"}</h2>
+          <p id="room-leave-description">{isGm
+            ? "Como mestre responsável por esta mesa, você precisa encerrá-la antes de sair. Isso evita deixar os participantes em uma sessão sem gerenciamento."
+            : "Você deixará a mesa virtual, mas continuará fazendo parte da campanha. Seu personagem, suas fichas e o histórico da aventura permanecerão salvos."}</p>
+          <div className="room-leave-details">
+            <div><Users size={16} /><span><strong>{session.campaignTitle || "Campanha"}</strong><small>{isGm ? "A mesa continuará vinculada a você." : "Os outros participantes continuarão na sessão."}</small></span></div>
+            <div><Shield size={16} /><span><strong>{isGm ? "Sessão sob sua responsabilidade" : "Seu progresso será preservado"}</strong><small>{isGm ? "Encerre a sessão para liberar a saída do mestre." : "O PIN continuará ativo e você poderá retornar quando quiser."}</small></span></div>
+          </div>
+          <div className="room-dialog-actions">
+            <button className="button button-secondary" type="button" onClick={() => setShowLeaveDialog(false)} disabled={Boolean(busyAction)}>{isGm ? "Entendi" : "Permanecer na sessão"}</button>
+            {!isGm && <button className="button room-leave-confirm" type="button" onClick={handleLeaveSession} disabled={Boolean(busyAction)}>{busyAction === "leave" ? "Saindo..." : <><LogOut size={15} /> Sair da sessão</>}</button>}
+          </div>
+        </section>
+      </div>}
       <CharacterEditDialog character={editingCharacter} saving={savingCharacter} error={characterError} onClose={() => setEditingCharacter(null)} onSave={handleSaveCharacter} onChange={changeCharacter} />
     </main>
   );
