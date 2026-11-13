@@ -317,7 +317,9 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
           p_resolution: {
             damage: result?.totalDamage || 0,
             pe_cost: Number(request.payload?.action?.peCost) || 0,
-            message: request.payload?.message || "Ação aprovada pelo mestre.",\n            condition: request.payload?.action?.statusEffect || null,
+            healing: result?.totalHealing || 0,
+            message: request.payload?.message || "Ação aprovada pelo mestre.",
+            condition: request.payload?.action?.statusEffect || null,
           },
         });
         if (rpcError) throw rpcError;
