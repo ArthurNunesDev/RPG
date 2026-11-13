@@ -105,6 +105,10 @@ export default function SessionPage() {
   const [mapRequests, setMapRequests] = useState([]);
   const [mapAnnotations, setMapAnnotations] = useState([]);
   const [activeMapUrl, setActiveMapUrl] = useState("");
+  const [mapState, setMapState] = useState(null);
+  const [mapRequests, setMapRequests] = useState([]);
+  const [mapAnnotations, setMapAnnotations] = useState([]);
+  const [activeMapUrl, setActiveMapUrl] = useState("");
   const [characters, setCharacters] = useState([]);
   const [messages, setMessages] = useState([]);
   const [onlineIds, setOnlineIds] = useState([]);
