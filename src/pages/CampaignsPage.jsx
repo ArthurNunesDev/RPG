@@ -273,7 +273,9 @@ export default function CampaignsPage() {
         </button>}
       </div>
 
-      <form className="campaign-pin-entry panel" onSubmit={handleJoinWithPin}><div><p className="eyebrow">ENTRAR EM UMA AVENTURA</p><strong>Já tem um PIN?</strong><span>Informe o código compartilhado pelo mestre.</span></div><input aria-label="PIN da sessão" autoComplete="off" maxLength={8} placeholder="EX: A7K9P2Q4" value={joinPin} onChange={(event) => setJoinPin(event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase())} /><button className="button button-primary" type="submit" disabled={joining || joinPin.length !== 8}>{joining ? "Conectando..." : "Entrar na campanha"}</button></form>\n\n      <div className="campaigns-stats">
+      <form className="campaign-pin-entry panel" onSubmit={handleJoinWithPin}><div><p className="eyebrow">ENTRAR EM UMA AVENTURA</p><strong>Já tem um PIN?</strong><span>Informe o código compartilhado pelo mestre.</span></div><input aria-label="PIN da sessão" autoComplete="off" maxLength={8} placeholder="EX: A7K9P2Q4" value={joinPin} onChange={(event) => setJoinPin(event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase())} /><button className="button button-primary" type="submit" disabled={joining || joinPin.length !== 8}>{joining ? "Conectando..." : "Entrar na campanha"}</button></form>
+
+      <div className="campaigns-stats">
         <div className="campaign-stat panel"><span className="campaign-stat-icon"><BookOpen size={17} /></span><div><strong>{campaigns.length}</strong><span>Campanhas</span></div></div>
         <div className="campaign-stat panel"><span className="campaign-stat-icon campaign-stat-icon--gold"><Crown size={17} /></span><div><strong>{hostedCount}</strong><span>Como mestre</span></div></div>
         <div className="campaign-stat panel"><span className="campaign-stat-icon campaign-stat-icon--blue"><Users size={17} /></span><div><strong>{participatingCount}</strong><span>Participando</span></div></div>
