@@ -84,15 +84,19 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
         setCombatants([]); setEvents([]); setRequests([]);
         return;
       }
-      const [cb, ev, rq] = await Promise.all([
+      const [cb, ev, rq, sheets] = await Promise.all([
         supabase.from("combatants").select("*").eq("encounter_id", active.id).order("turn_order", { ascending: true }),
         supabase.from("combat_events").select("*").eq("encounter_id", active.id).order("created_at", { ascending: false }).limit(60),
         supabase.from("combat_action_requests").select("*").eq("encounter_id", active.id).order("requested_at", { ascending: false }).limit(30),
+        supabase.from("combatant_sheets").select("combatant_id,sheet_snapshot"),
       ]);
       if (cb.error) throw cb.error;
       if (ev.error) throw ev.error;
       if (rq.error) throw rq.error;
-      setCombatants(cb.data ?? []); setEvents(ev.data ?? []); setRequests(rq.data ?? []);
+      if (sheets.error) throw sheets.error;
+      const sheetByCombatant = new Map((sheets.data ?? []).map((item) => [item.combatant_id, item.sheet_snapshot]));
+      setCombatants((cb.data ?? []).map((item) => ({ ...item, sheet_snapshot: sheetByCombatant.get(item.id) ?? null })));
+      setEvents(ev.data ?? []); setRequests(rq.data ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Não foi possível carregar o combate.");
     } finally {
@@ -107,7 +111,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
       .on("postgres_changes", { event: "*", schema: "public", table: "combat_encounters", filter: "session_id=eq." + sessionId }, () => loadCombat(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "combatants" }, () => loadCombat(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "combat_events" }, () => loadCombat(true))
-      .on("postgres_changes", { event: "*", schema: "public", table: "combat_action_requests" }, () => loadCombat(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "combat_action_requests" }, () => loadCombat(true))\n      .on("postgres_changes", { event: "*", schema: "public", table: "combatant_sheets" }, () => loadCombat(true))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [sessionId, loadCombat]);
@@ -152,8 +156,18 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
         };
       }).sort((a, b) => b.initiative - a.initiative || a.sort_order - b.sort_order)
         .map((item, index) => ({ ...item, turn_order: index + 1, sort_order: index }));
-      const { error: insertError } = await supabase.from("combatants").insert(ordered);
+      const combatantRows = ordered.map(({ sheet_snapshot, ...item }) => item);
+      const { data: insertedCombatants, error: insertError } = await supabase.from("combatants").insert(combatantRows).select("id,character_id,owner_id");
       if (insertError) throw insertError;
+      const sheetRows = insertedCombatants.map((item) => ({
+        combatant_id: item.id, character_id: item.character_id, owner_id: item.owner_id,
+        sheet_snapshot: ordered.find((combatant) => combatant.character_id === item.character_id)?.sheet_snapshot ?? {},
+      }));
+      const { error: sheetError } = await supabase.from("combatant_sheets").insert(sheetRows);
+      if (sheetError) {
+        await supabase.from("combat_encounters").delete().eq("id", created.id);
+        throw sheetError;
+      }
       const { error: eventError } = await supabase.from("combat_events").insert(ordered.map((item) => ({
         encounter_id: created.id, actor_character_id: item.character_id, actor_name: item.character_name,
         event_type: "initiative", result: { total: item.initiative, rolls: item.initiative_rolls }, created_by: userId,
