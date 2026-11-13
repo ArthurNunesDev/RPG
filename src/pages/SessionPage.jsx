@@ -39,7 +39,7 @@ function formatTime(value) {
   return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
-function SessionMapCard({ item, isGm, canView, requestStatus, isActiveMap, onRequestAccess, onOpen, onVisibility, onDelete }) {
+function SessionMapCard({ item, isGm, canView, canRequestAccess, requestStatus, isActiveMap, onRequestAccess, onOpen, onVisibility, onDelete }) {
   const [url, setUrl] = useState("");
   const [imageError, setImageError] = useState("");
   useEffect(() => {
@@ -726,7 +726,7 @@ export default function SessionPage() {
           </section>}
 
           {activeSection === "maps" && <section className="room-section">
-            <div className="room-section-heading"><div><span className="eyebrow">CENÁRIOS E CARTOGRAFIA</span><h2>Mapas da aventura</h2><p>{isGm ? "Adicione mapas e escolha qual cenário ficará disponível para os jogadores." : "Visualize o mapa que o mestre disponibilizou para a sessão."}</p></div><span className="room-count">{visibleMaps.length} {visibleMaps.length === 1 ? "mapa" : "mapas"}</span></div>
+            <div className="room-section-heading"><div><span className="eyebrow">CENÁRIOS E CARTOGRAFIA</span><h2>Mapas da aventura</h2><p>{isGm ? "Abra um mapa para a mesa e controle o que os participantes autorizados visualizam." : "Solicite acesso ao mapa aberto pelo mestre. A visualização só será liberada após aprovação."}</p></div><span className="room-count">{visibleMaps.length} {visibleMaps.length === 1 ? "mapa" : "mapas"}</span></div>
             {isGm && <form className="panel room-map-upload" onSubmit={handleUploadMap}>
               <div className="room-upload-intro"><ImagePlus size={19} /><div><strong>Adicionar mapa</strong><span>JPG, PNG, WebP ou GIF · até 15 MB</span></div></div>
               <label className="room-field"><span>Nome do mapa</span><input value={mapTitle} onChange={(event) => setMapTitle(event.target.value)} maxLength={100} placeholder="Ex.: Ruínas de Valdora" required /></label>
@@ -734,10 +734,21 @@ export default function SessionPage() {
               <label className="room-file-picker"><ImagePlus size={16} /><span>{mapFile?.name || "Selecionar imagem do mapa"}</span><input type="file" accept={ALLOWED_MAP_TYPES.join(",")} onChange={(event) => setMapFile(event.target.files?.[0] || null)} required /></label>
               <button className="button button-primary" type="submit" disabled={uploadingMap}>{uploadingMap ? "Enviando..." : "Adicionar mapa"}</button>
             </form>}
-            {visibleMaps.length ? <div className="room-map-grid">{visibleMaps.map((item) => <SessionMapCard key={item.id} item={item} isGm={isGm} onVisibility={() => handleMapVisibility(item)} onDelete={() => handleDeleteMap(item)} />)}</div>
-              : <div className="panel room-empty"><MapIcon size={28} /><strong>{isGm ? "Nenhum mapa cadastrado" : "O mestre ainda não disponibilizou mapas"}</strong><p>{isGm ? "Adicione o primeiro mapa para preparar o cenário da sessão." : "Quando um mapa for liberado, ele aparecerá nesta seção."}</p></div>}
+            {isGm && mapRequests.some((request) => request.status === "pending") && <section className="panel room-map-requests">
+              <div className="room-battle-heading"><div><span className="eyebrow">ACESSO AO CENÁRIO</span><h3>Solicitações de acesso ao mapa</h3></div><span className="room-count">{mapRequests.filter((request) => request.status === "pending").length} pendentes</span></div>
+              {mapRequests.filter((request) => request.status === "pending").map((request) => {
+                const requester = session.members?.find((member) => member.userId === request.user_id);
+                const requestedMap = maps.find((item) => item.id === request.map_id);
+                return <div className="room-map-request-row" key={request.id}><div><strong>{requester?.displayName || "Participante"}</strong><small>{requester?.role === "observer" ? "Observador" : "Jogador"} · {requestedMap?.title || "Mapa"}</small></div><div className="room-approval-actions"><button className="button button-primary" type="button" onClick={() => handleDecideMapAccess(request, "approved")}><Check size={14} /> Aceitar</button><button className="button button-secondary" type="button" onClick={() => handleDecideMapAccess(request, "rejected")}><XCircle size={14} /> Recusar</button></div></div>;
+              })}
+            </section>}
+            {canViewActiveMap && activeMap && (activeMapUrl ? <SessionMapViewer key={activeMap.id} url={activeMapUrl} title={activeMap.title} annotations={mapAnnotations.filter((item) => item.map_id === activeMap.id)} isGm={isGm} onCreateAnnotation={handleCreateMapAnnotation} /> : <div className="panel room-empty">Carregando mapa autorizado...</div>)}
+            {visibleMaps.length ? <div className="room-map-grid">{visibleMaps.map((item) => {
+              const request = mapRequests.find((entry) => entry.map_id === item.id && entry.user_id === user?.id);
+              const isActiveMap = Boolean(mapState?.is_open && mapState.active_map_id === item.id);
+              return <SessionMapCard key={item.id} item={item} isGm={isGm} canView={isGm || (isActiveMap && request?.status === "approved")} canRequestAccess={isActiveMap} requestStatus={request?.status} isActiveMap={isActiveMap} onRequestAccess={() => handleRequestMapAccess(item)} onOpen={() => handleOpenMap(item)} onVisibility={() => handleMapVisibility(item)} onDelete={() => handleDeleteMap(item)} />;
+            })}</div> : <div className="panel room-empty"><MapIcon size={28} /><strong>{isGm ? "Nenhum mapa cadastrado" : "Nenhum mapa disponível"}</strong><p>{isGm ? "Adicione o primeiro mapa para preparar o cenário da sessão." : "Quando o mestre disponibilizar um mapa, ele aparecerá nesta seção."}</p></div>}
           </section>}
-
           {activeSection === "characters" && <section className="room-section">
             <div className="room-section-heading"><div><span className="eyebrow">HERÓIS E FIGURAS DO CENÁRIO</span><h2>Personagens</h2><p>{isGm ? "Aprove solicitações e gerencie livremente as fichas da campanha." : isObserver ? "Consulte os personagens liberados para esta campanha." : "Aqui aparecem apenas suas fichas. Envie um personagem ao mestre para participar da campanha."}</p></div><span className="room-count">{(isGm ? characters.filter((item) => item.campaign_id === campaignId) : characters.filter((item) => item.owner_id === user?.id)).length} registros</span></div>
             {isGm && characters.some((item) => item.campaign_id === campaignId && item.character_type === "player" && item.campaign_approval_status === "pending") && <section className="panel room-pending-panel"><div className="room-battle-heading"><div><span className="eyebrow">AGUARDANDO SUA DECISÃO</span><h3>Solicitações de personagens</h3></div><span className="room-count">{characters.filter((item) => item.campaign_id === campaignId && item.character_type === "player" && item.campaign_approval_status === "pending").length} pendentes</span></div><div className="room-character-grid">{characters.filter((item) => item.campaign_id === campaignId && item.character_type === "player" && item.campaign_approval_status === "pending").map((character) => <article className="panel room-character-card" key={character.id}><div className="room-character-symbol"><UserRound size={22} /></div><div className="room-character-copy"><div><span>Solicitação pendente</span></div><h3>{character.name}</h3><p>{character.concept || "Nenhuma descrição cadastrada."}</p></div><div className="room-approval-actions"><button className="button button-primary" type="button" disabled={busyAction === "approval:" + character.id} onClick={() => handleCharacterApproval(character, "approved")}>Aprovar</button><button className="button button-secondary" type="button" disabled={busyAction === "approval:" + character.id} onClick={() => handleCharacterApproval(character, "rejected")}>Recusar</button></div></article>)}</div></section>}
