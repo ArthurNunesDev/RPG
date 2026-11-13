@@ -136,6 +136,7 @@ export default function CharactersPage() {
       npcRole: character.npc_role ?? "neutral",
       status: character.status,
     });
+    setSheet(character.sheet && typeof character.sheet === "object" ? character.sheet : createCharacterSheet(character.game_systems?.name ?? ""));
     setError("");
     setNotice("");
     setFormOpen(true);
@@ -146,6 +147,7 @@ export default function CharactersPage() {
     setFormOpen(false);
     setEditingId("");
     setForm(emptyForm);
+    setSheet({});
   }
 
   function changeCampaign(campaignId) {
@@ -156,6 +158,8 @@ export default function CharactersPage() {
       gameSystemId: campaign?.game_system_id ?? "",
       characterType: current.characterType === "npc" && campaign?.role !== "gm" ? "player" : current.characterType,
     }));
+    const systemName = systems.find((system) => system.id === campaign?.game_system_id)?.name ?? "";
+    setSheet(createCharacterSheet(systemName));
   }
 
   async function handleSave(event) {
@@ -200,6 +204,7 @@ export default function CharactersPage() {
         character_type: form.characterType,
         npc_role: isNpc ? form.npcRole : null,
         status: form.status,
+        sheet: sheet && typeof sheet === "object" && !Array.isArray(sheet) ? sheet : {},
       };
 
       const request = editingId
@@ -217,6 +222,7 @@ export default function CharactersPage() {
       setFormOpen(false);
       setEditingId("");
       setForm(emptyForm);
+      setSheet({});
       setNotice(editingId ? "Personagem atualizado." : isNpc ? "NPC adicionado à campanha." : "Personagem criado.");
       await loadData();
     } catch (saveError) {
@@ -307,8 +313,9 @@ export default function CharactersPage() {
           </label>
           {form.campaignId && <p className="character-system-hint">Sistema da campanha: {systems.find((system) => system.id === form.gameSystemId)?.name ?? "indisponível"}</p>}
           {!form.campaignId && (
-            <label className="character-field"><span>Sistema de RPG</span><select value={form.gameSystemId} onChange={(event) => setForm((current) => ({ ...current, gameSystemId: event.target.value }))} required><option value="">Selecione um sistema</option>{availableSystems.map((system) => <option key={system.id} value={system.id}>{system.name}</option>)}</select></label>
+            <label className="character-field"><span>Sistema de RPG</span><select value={form.gameSystemId} onChange={(event) => { const nextId = event.target.value; setForm((current) => ({ ...current, gameSystemId: nextId })); setSheet(createCharacterSheet(systems.find((system) => system.id === nextId)?.name ?? "")); }} required><option value="">Selecione um sistema</option>{availableSystems.map((system) => <option key={system.id} value={system.id}>{system.name}</option>)}</select></label>
           )}
+          {form.gameSystemId && <CharacterSheetEditor key={form.gameSystemId + ":" + (editingId || "new")} systemName={systems.find((system) => system.id === form.gameSystemId)?.name ?? ""} value={sheet} onChange={setSheet} />}
           {editingId && <label className="character-field"><span>Status</span><select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}><option value="active">Ativo</option><option value="retired">Aposentado</option><option value="deceased">Morto</option></select></label>}
           {error && <p className="characters-error" role="alert">{error}</p>}
           <div className="character-form-actions"><button className="button button-secondary" type="button" onClick={closeForm} disabled={saving}>Cancelar</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? "Salvando..." : editingId ? "Salvar alterações" : "Criar personagem"}</button></div>
