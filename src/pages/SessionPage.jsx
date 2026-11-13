@@ -9,6 +9,7 @@ import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import PresenceTracker from "../components/PresenceTracker.jsx";
 import SessionMapViewer from "../components/SessionMapViewer.jsx";
+import CombatPanel from "../components/CombatPanel.jsx";
 import CharacterSheetEditor, { createCharacterSheet } from "../components/CharacterSheetEditor.jsx";
 import DicePage from "./DicePage.jsx";
 import "../styles/session.css";
@@ -800,28 +801,8 @@ export default function SessionPage() {
           </section>}
 
           {activeSection === "battles" && <section className="room-section room-battles">
-            <div className="room-section-heading"><div><span className="eyebrow">CONFRONTO E SOBREVIVÊNCIA</span><h2>Batalhas</h2><p>{isGm ? "Acompanhe inimigos e aventureiros durante o combate." : "Acompanhe os inimigos e os personagens participantes do combate."}</p></div></div>
-            {(() => {
-              const approved = characters.filter((item) => item.campaign_id === campaignId && item.campaign_approval_status === "approved" && item.status === "active");
-              const enemies = approved.filter((item) => item.character_type === "npc" && item.npc_role === "enemy");
-              const players = approved.filter((item) => item.character_type === "player");
-              const renderCombatant = (character) => {
-                const sheet = character.sheet && typeof character.sheet === "object" ? character.sheet : {};
-                const entries = Object.entries(sheet).flatMap(([key, value]) => value && typeof value === "object" && !Array.isArray(value) ? Object.entries(value) : [[key, value]]);
-                const normalize = (key) => key.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-                const findNumber = (keys) => entries.find(([key, value]) => keys.includes(normalize(key)) && typeof value === "number" && Number.isFinite(value))?.[1];
-                const currentHp = findNumber(["hp","health","vida","pv","pontosdevida","vidaatual","hpcurrent","currenthp"]);
-                const maxHp = findNumber(["hpmax","maxhp","healthmax","maxhealth","vidamaxima","pvmax","pontosdevidamaximo"]);
-                const healthKeys = new Set(["hp","health","vida","pv","pontosdevida","vidaatual","hpcurrent","currenthp","hpmax","maxhp","healthmax","maxhealth","vidamaxima","pvmax","pontosdevidamaximo"]);
-                const otherStats = entries.filter(([key, value]) => !healthKeys.has(normalize(key)) && typeof value === "number" && Number.isFinite(value)).slice(0, 3);
-                return <article className="panel room-battle-card" key={character.id}>
-                  <div className="room-battle-portrait">{character.avatar_url ? <img src={character.avatar_url} alt={"Retrato de " + character.name} loading="lazy" /> : <UserRound size={30} />}</div>
-                  <div className="room-battle-card-info"><span>{character.character_type === "npc" ? "Inimigo" : "Aventureiro"}</span><h3>{character.name}</h3><div className="room-health-label"><strong>{currentHp === undefined ? "Vida não informada" : maxHp === undefined ? currentHp + " PV" : currentHp + " / " + maxHp + " PV"}</strong></div>{currentHp !== undefined && maxHp > 0 && <div className="room-health-track"><span style={{ width: Math.max(0, Math.min(100, currentHp / maxHp * 100)) + "%" }} /></div>}{otherStats.length > 0 && <div className="room-battle-stats">{otherStats.map(([key, value]) => <span key={key}>{key}: <strong>{value}</strong></span>)}</div>}</div>
-                  {isGm && <button className="button button-secondary room-edit-character" type="button" onClick={() => openCharacterEditor(character)}>Editar</button>}
-                </article>;
-              };
-              return <><section className="room-battle-side"><div className="room-battle-heading"><div><span className="eyebrow">LADO DO MESTRE</span><h3>Inimigos</h3></div><span className="room-count">{enemies.length}</span></div>{enemies.length ? <div className="room-battle-grid">{enemies.map(renderCombatant)}</div> : <div className="panel room-empty"><Shield size={24} /><strong>Nenhum inimigo aprovado</strong><p>Crie NPCs com função Inimigo para adicioná-los ao combate.</p></div>}</section><section className="room-battle-side"><div className="room-battle-heading"><div><span className="eyebrow">LADO DOS JOGADORES</span><h3>Aventureiros</h3></div><span className="room-count">{players.length}</span></div>{players.length ? <div className="room-battle-grid">{players.map(renderCombatant)}</div> : <div className="panel room-empty"><Users size={24} /><strong>Nenhum aventureiro aprovado</strong><p>Os personagens entram aqui depois da aprovação do mestre.</p></div>}</section></>;
-            })()}
+            <div className="room-section-heading"><div><span className="eyebrow">CONFRONTO E SOBREVIVÊNCIA</span><h2>Batalhas</h2><p>Iniciativa, ordem de turnos e histórico compartilhados em tempo real.</p></div></div>
+            <CombatPanel sessionId={sessionId} campaignId={campaignId} characters={characters} userId={user?.id} isGm={isGm} isObserver={isObserver} onRefreshCharacters={() => loadSession(true)} />
           </section>}
 
           {activeSection === "dice" && <section className="room-section"><div className="room-section-heading"><div><span className="eyebrow">SORTE E DESTINO</span><h2>Mesa de rolagem</h2><p>Role dados e consulte os registros pessoais ou compartilhados da campanha.</p></div></div><DicePage campaignIdProp={campaignId} embedded readOnly={isObserver} /></section>}
