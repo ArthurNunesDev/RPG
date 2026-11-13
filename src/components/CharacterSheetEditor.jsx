@@ -58,12 +58,15 @@ export function createCharacterSheet(systemName = "") {
   };
 }
 
-function Field({ label, value, onChange, type = "text", placeholder = "", min, max, step }) {
-  return <label className="sheet-field"><span>{label}</span><input type={type} value={value ?? ""} placeholder={placeholder} min={min} max={max} step={step} onChange={(event) => onChange(type === "number" ? (event.target.value === "" ? "" : Number(event.target.value)) : event.target.value)} /></label>;
+function Field({ label, value, onChange, type = "text", placeholder = "", min, max, step, disabled = false }) {
+  return <label className="sheet-field"><span>{label}</span><input type={type} value={value ?? ""} placeholder={placeholder} min={min} max={max} step={step ?? (type === "number" ? 1 : undefined)} disabled={disabled} onChange={(event) => {
+    const rawValue = event.target.value;
+    onChange(type === "number" ? (rawValue === "" ? "" : Number(rawValue)) : rawValue);
+  }} /></label>;
 }
 
-function TextField({ label, value, onChange, rows = 3, placeholder = "" }) {
-  return <label className="sheet-field sheet-field-wide"><span>{label}</span><textarea rows={rows} value={value ?? ""} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /></label>;
+function TextField({ label, value, onChange, rows = 3, placeholder = "", disabled = false }) {
+  return <label className="sheet-field sheet-field-wide"><span>{label}</span><textarea rows={rows} value={value ?? ""} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function Section({ title, children, variant = "" }) {
@@ -72,7 +75,7 @@ function Section({ title, children, variant = "" }) {
 }
 
 export default function CharacterSheetEditor({ systemName, value, onChange, disabled = false }) {
-  const sheet = value && typeof value === "object" && !Array.isArray(value)
+  const sheet = value && typeof value === "object" && !Array.isArray(value) && value.template
     ? value
     : createCharacterSheet(systemName);
   const template = useMemo(() => createCharacterSheet(systemName), [systemName]);
@@ -80,11 +83,23 @@ export default function CharacterSheetEditor({ systemName, value, onChange, disa
   const isDnd = template.template === "dnd5e";
   const update = (path, next) => {
     const keys = path.split(".");
-    const nextSheet = structuredClone(sheet);
-    let target = nextSheet;
-    for (const key of keys.slice(0, -1)) target[key] = target[key] && typeof target[key] === "object" ? target[key] : {};
-    target[keys[keys.length - 1]] = next;
-    onChange(nextSheet);
+    onChange((currentValue) => {
+      const base = currentValue && typeof currentValue === "object" && !Array.isArray(currentValue) && currentValue.template
+        ? currentValue
+        : createCharacterSheet(systemName);
+      const nextSheet = { ...base };
+      let source = base;
+      let target = nextSheet;
+      for (const key of keys.slice(0, -1)) {
+        const sourceChild = source[key];
+        const nextChild = sourceChild && typeof sourceChild === "object" && !Array.isArray(sourceChild) ? { ...sourceChild } : {};
+        target[key] = nextChild;
+        source = sourceChild ?? {};
+        target = nextChild;
+      }
+      target[keys[keys.length - 1]] = next;
+      return nextSheet;
+    });
   };
   const attrs = isOrder
     ? [["AGI", "Agilidade"], ["FOR", "Força"], ["INT", "Intelecto"], ["PRE", "Presença"], ["VIG", "Vigor"]]
