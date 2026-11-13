@@ -196,12 +196,15 @@ export default function CharactersPage() {
         character_type: form.characterType,
         npc_role: isNpc ? form.npcRole : null,
         status: form.status,
-        campaign_approval_status: form.campaignId ? (isNpc ? "approved" : "pending") : "not_submitted",
       };
 
       const request = editingId
         ? supabase.from("characters").update(payload).eq("id", editingId)
-        : supabase.from("characters").insert({ ...payload, owner_id: user.id });
+        : supabase.from("characters").insert({
+          ...payload,
+          owner_id: user.id,
+          campaign_approval_status: form.campaignId ? (isNpc ? "approved" : "pending") : "not_submitted",
+        });
 
       const { data, error: saveError } = await request.select("id").single();
       if (saveError) throw saveError;
