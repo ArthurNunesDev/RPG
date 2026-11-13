@@ -63,6 +63,10 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   const [combatants, setCombatants] = useState([]);
   const [events, setEvents] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [effects, setEffects] = useState([]);
+  const [effectName, setEffectName] = useState("Veneno");
+  const [effectDurationFormula, setEffectDurationFormula] = useState("1d5");
+  const [effectDamageFormula, setEffectDamageFormula] = useState("1d4");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -83,22 +87,24 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
       if (encounterError) throw encounterError;
       setEncounter(active);
       if (!active) {
-        setCombatants([]); setEvents([]); setRequests([]);
+        setCombatants([]); setEvents([]); setRequests([]); setEffects([]);
         return;
       }
-      const [cb, ev, rq, sheets] = await Promise.all([
+      const [cb, ev, rq, sheets, fx] = await Promise.all([
         supabase.from("combatants").select("*").eq("encounter_id", active.id).order("turn_order", { ascending: true }),
         supabase.from("combat_events").select("*").eq("encounter_id", active.id).order("created_at", { ascending: false }).limit(60),
         supabase.from("combat_action_requests").select("*").eq("encounter_id", active.id).order("requested_at", { ascending: false }).limit(30),
         supabase.from("combatant_sheets").select("combatant_id,sheet_snapshot"),
+        supabase.from("combat_effects").select("*").eq("encounter_id", active.id).gt("remaining_rounds", 0).order("created_at", { ascending: true }),
       ]);
       if (cb.error) throw cb.error;
       if (ev.error) throw ev.error;
       if (rq.error) throw rq.error;
       if (sheets.error) throw sheets.error;
+      if (fx.error) throw fx.error;
       const sheetByCombatant = new Map((sheets.data ?? []).map((item) => [item.combatant_id, item.sheet_snapshot]));
       setCombatants((cb.data ?? []).map((item) => ({ ...item, sheet_snapshot: sheetByCombatant.get(item.id) ?? null })));
-      setEvents(ev.data ?? []); setRequests(rq.data ?? []);
+      setEvents(ev.data ?? []); setRequests(rq.data ?? []); setEffects(fx.data ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Não foi possível carregar o combate.");
     } finally {
@@ -271,6 +277,45 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     finally { setBusy(false); }
   };
 
+  const applyPeriodicEffect = async () => {
+    if (!isGm || !encounter || !targetCombatant || !effectName.trim() || busy) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const duration = rollDice(effectDurationFormula);
+      const damage = rollDice(effectDamageFormula);
+      if (duration.total < 1 || damage.total < 0 || duration.total > 100) throw new Error("Duração inválida. Use uma duração entre 1 e 100 rodadas.");
+      const { error: insertError } = await supabase.from("combat_effects").insert({
+        encounter_id: encounter.id, target_character_id: targetCombatant.character_id,
+        target_name: targetCombatant.character_name, effect_name: effectName.trim(),
+        effect_type: "damage", damage_per_round: damage.total, remaining_rounds: duration.total,
+        source_name: actorForControls?.character_name || "Mestre", applied_round: encounter.round_number, created_by: userId,
+      });
+      if (insertError) throw insertError;
+      const { error: eventError } = await supabase.from("combat_events").insert({
+        encounter_id: encounter.id, actor_character_id: actorForControls?.character_id || null,
+        target_character_id: targetCombatant.character_id, actor_name: actorForControls?.character_name || "Mestre",
+        target_name: targetCombatant.character_name, event_type: "condition",
+        result: { message: `${effectName.trim()} aplicado em ${targetCombatant.character_name}: ${duration.total} rodadas, ${damage.total} de dano por rodada.`, duration: duration.total, damage_per_round: damage.total },
+        created_by: userId,
+      });
+      if (eventError) throw eventError;
+      await loadCombat(true);
+      report(`${effectName.trim()} aplicado: ${duration.total} rodadas causando ${damage.total} de dano por rodada.`);
+    } catch (err) { fail(err, "Não foi possível aplicar o efeito."); }
+    finally { setBusy(false); }
+  };
+
+  const removePeriodicEffect = async (effect) => {
+    if (!isGm || busy) return;
+    setBusy(true);
+    try {
+      const { error: updateError } = await supabase.from("combat_effects").update({ remaining_rounds: 0, updated_at: new Date().toISOString() }).eq("id", effect.id);
+      if (updateError) throw updateError;
+      await loadCombat(true); report(`${effect.effect_name} removido de ${effect.target_name}.`);
+    } catch (err) { fail(err, "Não foi possível remover o efeito."); }
+    finally { setBusy(false); }
+  };
+
   const advanceTurn = async (skip = false) => {
     if (!isGm || !encounter || busy || !eligibleCombatants.length) return;
     setBusy(true);
@@ -287,6 +332,30 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
           actions_used: { standard: false, movement: false, reaction: false }, updated_at: new Date().toISOString(),
         }).eq("encounter_id", encounter.id).eq("is_active", true);
         if (resetError) throw resetError;
+        const { data: dueEffects, error: effectsError } = await supabase.from("combat_effects").select("*")
+          .eq("encounter_id", encounter.id).gt("remaining_rounds", 0);
+        if (effectsError) throw effectsError;
+        for (const effect of dueEffects || []) {
+          const target = combatants.find((item) => item.character_id === effect.target_character_id);
+          if (!target) continue;
+          const nextHp = Math.max(0, target.current_hp - Number(effect.damage_per_round || 0));
+          if (effect.damage_per_round > 0) {
+            const { error: hpError } = await supabase.from("combatants").update({ current_hp: nextHp, updated_at: new Date().toISOString() }).eq("id", target.id);
+            if (hpError) throw hpError;
+            const { error: sheetError } = await supabase.from("characters").update({ sheet: { ...((characters.find((item) => item.id === target.character_id)?.sheet) || {}), vitals: { ...((characters.find((item) => item.id === target.character_id)?.sheet?.vitals) || {}), hp: nextHp } }, updated_at: new Date().toISOString() }).eq("id", target.character_id);
+            if (sheetError) throw sheetError;
+          }
+          const remaining = Math.max(0, effect.remaining_rounds - 1);
+          const { error: effectUpdateError } = await supabase.from("combat_effects").update({ remaining_rounds: remaining, updated_at: new Date().toISOString() }).eq("id", effect.id);
+          if (effectUpdateError) throw effectUpdateError;
+          const { error: logError } = await supabase.from("combat_events").insert({
+            encounter_id: encounter.id, actor_character_id: null, target_character_id: target.character_id,
+            actor_name: effect.source_name || "Efeito", target_name: target.character_name, event_type: "damage",
+            result: { message: `${effect.effect_name}: ${target.character_name} sofreu ${effect.damage_per_round} de dano periódico. ${remaining ? `Restam ${remaining} rodadas.` : "Efeito encerrado."}`, damage: effect.damage_per_round, remaining_rounds: remaining },
+            created_by: userId,
+          });
+          if (logError) throw logError;
+        }
       }
       const { error: eventError } = await supabase.from("combat_events").insert({
         encounter_id: encounter.id, actor_character_id: next.character_id, actor_name: next.character_name,
@@ -477,6 +546,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
             <label className="room-combat-field"><span>Alvo para dano ou cura</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione o alvo</option>{sortedCombatants.map((item)=><option key={item.id} value={item.character_id}>{item.character_name}</option>)}</select></label>
             {actorForControls && <div className="room-combat-actions-row"><label><span>Ação do combatente</span><select value={selectedAction} onChange={(e)=>setSelectedAction(e.target.value)}><option value="">Selecione ataque/habilidade</option>{actorAttacks.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Ataque · {a.name}</option>)}{actorAbilities.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Habilidade · {a.name}</option>)}</select></label><button className="button button-primary" type="button" disabled={busy || !selectedActionObject || (actorAttacks.includes(selectedActionObject)&&!targetCombatant)||((selectedActionObject?.effectType!=="utility"||selectedActionObject?.statusEffect)&&actorAbilities.includes(selectedActionObject)&&!targetCombatant)} onClick={()=>submitAction(actorForControls,targetCombatant,selectedActionObject,actorAttacks.includes(selectedActionObject)?"attack":"ability",true)}>Executar ação</button></div>}
             <div className="room-combat-actions-row"><label><span>Adicionar personagem / NPC</span><select value={selectedNewCombatant} onChange={(e)=>setSelectedNewCombatant(e.target.value)}><option value="">Selecione</option>{availableToAdd.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="button button-secondary" type="button" disabled={busy || !selectedNewCombatant} onClick={addCombatant}>Adicionar</button></div>
+            <div className="room-combat-actions-row"><label><span>Efeito periódico</span><input value={effectName} onChange={(e)=>setEffectName(e.target.value)} placeholder="Veneno"/></label><label><span>Duração (dados)</span><input value={effectDurationFormula} onChange={(e)=>setEffectDurationFormula(e.target.value)} placeholder="1d5"/></label><label><span>Dano por rodada</span><input value={effectDamageFormula} onChange={(e)=>setEffectDamageFormula(e.target.value)} placeholder="1d4"/></label><button className="button button-secondary" type="button" disabled={busy||!targetCombatant||!effectName.trim()} onClick={applyPeriodicEffect}>Aplicar efeito</button></div>
             <button className="button button-secondary" type="button" disabled={busy || !eligibleCombatants.length} onClick={()=>advanceTurn(true)}><SkipForward size={14}/> Pular turno atual</button>
           </div>}
           {!isGm && currentCombatant?.owner_id===userId && currentCombatant.turn_control==="player" && !currentCombatant.turn_blocked && !encounter.turns_paused && !isObserver && <div className="panel room-player-actions">
@@ -499,7 +569,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
           {isGm && <section className="panel room-combat-requests"><div className="room-battle-heading"><div><span className="eyebrow">AGUARDANDO MESTRE</span><h3>Solicitações ({pendingRequests.length})</h3></div><Activity size={17}/></div>
             {pendingRequests.length ? pendingRequests.map((request)=><article key={request.id}><strong>{combatants.find((item)=>item.character_id===request.actor_character_id)?.character_name||"Personagem"} · {request.payload?.action?.name||request.action_type}</strong><small>{request.payload?.roll?.message||request.payload?.message||"Ação solicitada"}</small>{request.payload?.roll?.attackRoll&&<small>Teste: {request.payload.roll.attackRoll.total} · Defesa: {request.payload.roll.defense} · Dano: {request.payload.roll.totalDamage||0}</small>}<div><button className="button button-primary" type="button" disabled={busy} onClick={()=>resolveRequest(request,true)}>Aprovar e aplicar</button><button className="button button-secondary" type="button" disabled={busy} onClick={()=>resolveRequest(request,false)}>Recusar</button></div></article>) : <small>Nenhuma ação aguardando aprovação.</small>}
           </section>}
-          <section className="panel room-combat-log"><div className="room-battle-heading"><div><span className="eyebrow">REGISTRO DA SESSÃO</span><h3>Histórico do combate</h3></div><button className="icon-button" type="button" onClick={()=>loadCombat()} aria-label="Atualizar histórico"><RefreshCw size={15}/></button></div>{events.length?events.map((event)=><p key={event.id}><time>{new Date(event.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</time>{describeEvent(event)}</p>):<small>Nenhuma ação registrada ainda.</small>}</section>
+          {effects.length>0 && <section className="panel room-combat-effects"><div className="room-battle-heading"><div><span className="eyebrow">EFEITOS ATIVOS</span><h3>Durações e condições</h3></div><Timer size={17}/></div>{effects.map((effect)=><article key={effect.id}><div><strong>{effect.effect_name} · {effect.target_name}</strong><small>{effect.damage_per_round} de dano por rodada · {effect.remaining_rounds} rodada(s) restante(s)</small></div>{isGm&&<button className="button button-secondary" type="button" disabled={busy} onClick={()=>removePeriodicEffect(effect)}>Remover</button>}</article>)}</section>}<section className="panel room-combat-log"><div className="room-battle-heading"><div><span className="eyebrow">REGISTRO DA SESSÃO</span><h3>Histórico do combate</h3></div><button className="icon-button" type="button" onClick={()=>loadCombat()} aria-label="Atualizar histórico"><RefreshCw size={15}/></button></div>{events.length?events.map((event)=><p key={event.id}><time>{new Date(event.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</time>{describeEvent(event)}</p>):<small>Nenhuma ação registrada ainda.</small>}</section>
         </aside>
       </div>
     </>}
