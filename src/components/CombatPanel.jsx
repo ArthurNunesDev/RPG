@@ -58,7 +58,8 @@ function describeEvent(event) {
 }
 
 export default function CombatPanel({ sessionId, campaignId, gameSystemId, characters, userId, isGm, isObserver }) {
-  const [encounter, setEncounter] = useState(null);\n  const [systemSlug, setSystemSlug] = useState("");
+  const [encounter, setEncounter] = useState(null);
+  const [systemSlug, setSystemSlug] = useState("");
   const [combatants, setCombatants] = useState([]);
   const [events, setEvents] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -397,7 +398,8 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
         <button className="button button-secondary" type="button" disabled={busy} onClick={endCombat}><Flag size={14}/> Encerrar</button>
       </div>}
     </div>
-    {!isOrderSystem && <p className="room-readonly-note">O motor de combate está disponível inicialmente para campanhas de Ordem Paranormal. Os demais sistemas serão integrados em etapas próprias.</p>}\n    {error && <p className="room-error" role="alert">{error}</p>}
+    {!isOrderSystem && <p className="room-readonly-note">O motor de combate está disponível inicialmente para campanhas de Ordem Paranormal. Os demais sistemas serão integrados em etapas próprias.</p>}
+    {error && <p className="room-error" role="alert">{error}</p>}
     {notice && <p className="room-combat-notice" role="status">{notice}</p>}
     {!encounter ? <div className="panel room-combat-empty"><Swords size={28}/><strong>Nenhum combate ativo</strong><p>{isGm ? "Personagens aprovados e NPCs criados pelo mestre estarão disponíveis na iniciativa." : "Aguardando o mestre iniciar o combate."}</p><small>{approvedCharacters.length} combatentes disponíveis</small></div> : <>
       <div className="room-combat-status"><span><Timer size={14}/> Rodada {encounter.round_number}</span><strong>{encounter.turns_paused ? "Turnos pausados" : currentCombatant ? `Vez de ${currentCombatant.character_name}` : "Sem turno liberado"}</strong>{isMyTurn && !encounter.turns_paused && <em>Sua vez</em>}</div>
