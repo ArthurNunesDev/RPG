@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Crosshair, Hand, MapPin, Pencil, Plus, Type, ZoomIn, ZoomOut } from "lucide-react";
+import { Crosshair, Hand, MapPin, Pencil, Type, ZoomIn, ZoomOut } from "lucide-react";
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-export default function SessionMapViewer({ url, title, annotations, isGm, onCreateAnnotation }) {
+export default function SessionMapViewer({ url, title, annotations, isGm, viewport, onViewportChange, onCreateAnnotation }) {
   const svgRef = useRef(null);
   const drawingRef = useRef([]);
   const dragRef = useRef(null);
@@ -13,6 +13,12 @@ export default function SessionMapViewer({ url, title, annotations, isGm, onCrea
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [draftPath, setDraftPath] = useState([]);
   const [saving, setSaving] = useState(false);
+  const lastViewportSyncRef = useRef(0);
+
+  useEffect(() => {
+    setZoom(viewport?.zoom || 1);
+    setOffset({ x: viewport?.x || 0, y: viewport?.y || 0 });
+  }, [viewport?.zoom, viewport?.x, viewport?.y]);
 
   useEffect(() => {
     let active = true;
@@ -69,13 +75,21 @@ export default function SessionMapViewer({ url, title, annotations, isGm, onCrea
     if (tool === "move" && dragRef.current) {
       const deltaX = event.clientX - dragRef.current.x;
       const deltaY = event.clientY - dragRef.current.y;
-      setOffset({ x: dragRef.current.offsetX + deltaX, y: dragRef.current.offsetY + deltaY });
+      const nextOffset = { x: dragRef.current.offsetX + deltaX, y: dragRef.current.offsetY + deltaY };
+      setOffset(nextOffset);
+      const now = Date.now();
+      if (now - lastViewportSyncRef.current >= 120) {
+        lastViewportSyncRef.current = now;
+        onViewportChange?.({ zoom, ...nextOffset });
+      }
       return;
     }
     if (tool === "draw" && drawingRef.current.length) {
       const point = getPoint(event);
       if (!point) return;
-      const next = [...drawingRef.current, point];
+      const previous = drawingRef.current[drawingRef.current.length - 1];
+      if (Math.hypot(point.x - previous.x, point.y - previous.y) < 0.0015) return;
+      const next = drawingRef.current.length >= 400 ? [...drawingRef.current.slice(-399), point] : [...drawingRef.current, point];
       drawingRef.current = next;
       setDraftPath(next);
     }
@@ -83,6 +97,7 @@ export default function SessionMapViewer({ url, title, annotations, isGm, onCrea
 
   async function handlePointerUp(event) {
     if (!isGm) return;
+    if (dragRef.current) onViewportChange?.({ zoom, x: offset.x, y: offset.y });
     dragRef.current = null;
     if (tool !== "draw" || !drawingRef.current.length) return;
     const points = drawingRef.current;
@@ -120,10 +135,10 @@ export default function SessionMapViewer({ url, title, annotations, isGm, onCrea
         {isGm ? <div className="room-map-editor-toolbar">
           {tools.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={tool === id ? "active" : ""} onClick={() => setTool(id)} title={label} aria-label={label}><Icon size={15} /></button>)}
           <span className="room-map-toolbar-divider" />
-          <button type="button" onClick={() => setZoom((value) => clamp(value - 0.15, 0.5, 3))} disabled={zoom <= 0.5} aria-label="Diminuir zoom"><ZoomOut size={15} /></button>
+          <button type="button" onClick={() => setZoom((value) => { const next = clamp(value - 0.15, 0.5, 3); onViewportChange?.({ zoom: next, x: offset.x, y: offset.y }); return next; })} disabled={zoom <= 0.5} aria-label="Diminuir zoom"><ZoomOut size={15} /></button>
           <span className="room-map-zoom-value">{Math.round(zoom * 100)}%</span>
-          <button type="button" onClick={() => setZoom((value) => clamp(value + 0.15, 0.5, 3))} disabled={zoom >= 3} aria-label="Aumentar zoom"><ZoomIn size={15} /></button>
-          <button type="button" onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); }} title="Centralizar"><Crosshair size={15} /></button>
+          <button type="button" onClick={() => setZoom((value) => { const next = clamp(value + 0.15, 0.5, 3); onViewportChange?.({ zoom: next, x: offset.x, y: offset.y }); return next; })} disabled={zoom >= 3} aria-label="Aumentar zoom"><ZoomIn size={15} /></button>
+          <button type="button" onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); onViewportChange?.({ zoom: 1, x: 0, y: 0 }); }} title="Centralizar"><Crosshair size={15} /></button>
         </div> : <span className="room-readonly-note"><Crosshair size={14} /> Somente visualização</span>}
       </div>
       <div className={"room-map-canvas" + (isGm ? " editable" : " readonly")} style={{ aspectRatio: dimensions.width + " / " + dimensions.height }}>
