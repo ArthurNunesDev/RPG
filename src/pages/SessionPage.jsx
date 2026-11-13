@@ -12,6 +12,7 @@ import SessionMapViewer from "../components/SessionMapViewer.jsx";
 import CharacterSheetEditor, { createCharacterSheet } from "../components/CharacterSheetEditor.jsx";
 import DicePage from "./DicePage.jsx";
 import "../styles/session.css";
+import "../styles/characters.css";
 
 const MAX_MAP_SIZE = 15 * 1024 * 1024;
 const ALLOWED_MAP_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
