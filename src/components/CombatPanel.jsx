@@ -57,8 +57,8 @@ function describeEvent(event) {
   return result.message || (event.event_type === "initiative" ? "Iniciativa registrada." : event.event_type);
 }
 
-export default function CombatPanel({ sessionId, campaignId, characters, userId, isGm, isObserver }) {
-  const [encounter, setEncounter] = useState(null);
+export default function CombatPanel({ sessionId, campaignId, gameSystemId, characters, userId, isGm, isObserver }) {
+  const [encounter, setEncounter] = useState(null);\n  const [systemSlug, setSystemSlug] = useState("");
   const [combatants, setCombatants] = useState([]);
   const [events, setEvents] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -104,6 +104,16 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
     }
   }, [sessionId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!gameSystemId) { setSystemSlug(""); return undefined; }
+    supabase.from("game_systems").select("slug").eq("id", gameSystemId).maybeSingle()
+      .then(({ data, error: systemError }) => {
+        if (!cancelled) setSystemSlug(systemError ? "" : data?.slug || "");
+      });
+    return () => { cancelled = true; };
+  }, [gameSystemId]);
+
   useEffect(() => { loadCombat(); }, [loadCombat]);
   useEffect(() => {
     if (!supabase || !sessionId) return undefined;
@@ -117,7 +127,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
     return () => { supabase.removeChannel(channel); };
   }, [sessionId, loadCombat]);
 
-  const approvedCharacters = useMemo(() => characters.filter((item) =>
+  const isOrderSystem = systemSlug === "ordem-paranormal";\n  const approvedCharacters = useMemo(() => characters.filter((item) =>
     item.campaign_id === campaignId && item.status === "active" &&
     (item.campaign_approval_status === "approved" || (isGm && item.character_type === "npc" && item.owner_id === userId))
   ), [characters, campaignId, isGm, userId]);
@@ -136,7 +146,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
   const fail = (err, fallback) => { setError(err instanceof Error ? err.message : fallback); setNotice(""); };
 
   const startCombat = async () => {
-    if (!isGm || busy || !approvedCharacters.length) return;
+    if (!isGm || !isOrderSystem || busy || !approvedCharacters.length) return;
     setBusy(true); setError(""); setNotice("");
     try {
       const { data: created, error: createError } = await supabase.from("combat_encounters").insert({
@@ -380,14 +390,14 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
   return <div className="room-combat-system">
     <div className="room-combat-toolbar">
       <div><span className="eyebrow">ORDEM PARANORMAL</span><h3>{encounter ? `Combate · Rodada ${encounter.round_number}` : "Preparação do combate"}</h3><p>{encounter ? "O mestre controla a ordem, a liberação e o bloqueio de cada turno." : "O mestre inicia o encontro e define quem poderá agir."}</p></div>
-      {isGm && !encounter && <button className="button button-primary" type="button" disabled={busy || !approvedCharacters.length} onClick={startCombat}><Swords size={15}/>{busy ? "Iniciando..." : "Iniciar combate"}</button>}
+      {isGm && !encounter && <button className="button button-primary" type="button" disabled={busy || !isOrderSystem || !approvedCharacters.length} onClick={startCombat}><Swords size={15}/>{busy ? "Iniciando..." : "Iniciar combate"}</button>}
       {isGm && encounter && <div className="room-combat-toolbar-actions">
         <button className="button button-secondary" type="button" disabled={busy} onClick={togglePause}>{encounter.turns_paused ? <CirclePlay size={15}/> : <CirclePause size={15}/>} {encounter.turns_paused ? "Retomar" : "Pausar"}</button>
         <button className="button button-secondary" type="button" disabled={busy || !eligibleCombatants.length} onClick={() => advanceTurn()}><ChevronRight size={15}/> Próximo turno</button>
         <button className="button button-secondary" type="button" disabled={busy} onClick={endCombat}><Flag size={14}/> Encerrar</button>
       </div>}
     </div>
-    {error && <p className="room-error" role="alert">{error}</p>}
+    {!isOrderSystem && <p className="room-readonly-note">O motor de combate está disponível inicialmente para campanhas de Ordem Paranormal. Os demais sistemas serão integrados em etapas próprias.</p>}\n    {error && <p className="room-error" role="alert">{error}</p>}
     {notice && <p className="room-combat-notice" role="status">{notice}</p>}
     {!encounter ? <div className="panel room-combat-empty"><Swords size={28}/><strong>Nenhum combate ativo</strong><p>{isGm ? "Personagens aprovados e NPCs criados pelo mestre estarão disponíveis na iniciativa." : "Aguardando o mestre iniciar o combate."}</p><small>{approvedCharacters.length} combatentes disponíveis</small></div> : <>
       <div className="room-combat-status"><span><Timer size={14}/> Rodada {encounter.round_number}</span><strong>{encounter.turns_paused ? "Turnos pausados" : currentCombatant ? `Vez de ${currentCombatant.character_name}` : "Sem turno liberado"}</strong>{isMyTurn && !encounter.turns_paused && <em>Sua vez</em>}</div>
