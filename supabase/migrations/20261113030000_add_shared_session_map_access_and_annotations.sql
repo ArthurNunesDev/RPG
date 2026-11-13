@@ -8,9 +8,10 @@ create table if not exists public.session_map_access_requests (
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
   requested_at timestamptz not null default now(),
   decided_at timestamptz,
-  decided_by uuid references public.profiles(id) on delete set null,
-  unique (session_id, map_id, user_id)
+  decided_by uuid references public.profiles(id) on delete set null
 );
+create unique index if not exists session_map_access_one_pending_idx
+  on public.session_map_access_requests(session_id, map_id, user_id) where status = 'pending';
 create index if not exists session_map_access_requests_gm_idx
   on public.session_map_access_requests(session_id, status, requested_at desc);
 alter table public.session_map_access_requests enable row level security;
