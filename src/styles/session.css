@@ -66,3 +66,35 @@
 .room-dialog-actions .room-leave-confirm:hover{border-color:rgba(220,126,126,.6);background:rgba(139,61,61,.4)}
 .room-dialog-actions .room-leave-confirm:disabled{opacity:.6;cursor:wait}
 @media(max-width:520px){.room-leave-dialog{padding:21px}.room-leave-dialog h2{font-size:22px}.room-leave-dialog .room-dialog-actions{flex-direction:column-reverse}.room-leave-dialog .room-dialog-actions button{width:100%;justify-content:center}}
+
+
+/* Turn-based combat workspace */
+.room-combat-system{display:flex;flex-direction:column;gap:16px}
+.room-combat-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:17px;border:1px solid rgba(201,166,107,.18);border-radius:12px;background:linear-gradient(115deg,rgba(201,166,107,.075),rgba(255,255,255,.015) 62%)}
+.room-combat-toolbar h3{margin:5px 0 6px;color:#eee6d9;font:20px "Marcellus",Georgia,serif}
+.room-combat-toolbar p{margin:0;color:#99939b;font-size:10px;line-height:1.6}
+.room-combat-toolbar-actions{display:flex;gap:7px;flex-wrap:wrap}
+.room-combat-toolbar-actions .button,.room-combat-toolbar>.button{flex:0 0 auto}
+.room-combat-empty{display:flex;min-height:190px;align-items:center;justify-content:center;flex-direction:column;gap:9px;padding:24px;text-align:center;color:#c9a46f}
+.room-combat-empty strong{color:#e8e0d4;font:17px "Marcellus",Georgia,serif}
+.room-combat-empty p,.room-combat-empty small{max-width:420px;margin:0;color:#99939b;font-size:10px;line-height:1.6}
+.room-combat-status{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;border:1px solid rgba(201,166,107,.22);border-radius:9px;background:rgba(201,166,107,.07);color:#c9a46f}
+.room-combat-status span{display:flex;align-items:center;gap:7px;font-size:10px}
+.room-combat-status strong{color:#eee6d9;font-size:12px}
+.room-combat-status em{padding:5px 8px;border-radius:5px;color:#a9d1a7;background:rgba(91,153,94,.13);font-size:9px;font-style:normal}
+.room-combatant-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.room-combatant{display:flex;min-width:0;align-items:center;gap:11px;padding:12px;border-color:rgba(255,255,255,.07);background:rgba(255,255,255,.018)}
+.room-combatant.active{border-color:rgba(201,166,107,.48);background:linear-gradient(110deg,rgba(201,166,107,.12),rgba(255,255,255,.025))}
+.room-combatant-order{display:grid;width:28px;height:28px;flex:0 0 auto;place-items:center;border:1px solid rgba(201,166,107,.24);border-radius:7px;color:#d9b77f;font:14px "Marcellus",Georgia,serif}
+.room-combatant-info{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+.room-combatant-info>strong{overflow:hidden;color:#e8e0d4;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.room-combatant-info>small{color:#99939b;font-size:8px}
+.room-combatant>svg{flex:0 0 auto;color:#c9a46f}
+.room-combatant-hp{height:5px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.09)}
+.room-combatant-hp span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#914747,#c77a65)}
+.room-combat-log{padding:15px}
+.room-combat-log .room-battle-heading{margin-bottom:8px}
+.room-combat-log p{display:flex;gap:12px;margin:0;padding:9px 0;border-top:1px solid rgba(255,255,255,.06);color:#c9c1b6;font-size:10px;line-height:1.5}
+.room-combat-log p time{flex:0 0 auto;color:#8e8790;font-size:9px}
+.room-combat-log>small{color:#928b93;font-size:9px}
+@media(max-width:760px){.room-combat-toolbar{align-items:stretch;flex-direction:column}.room-combat-toolbar-actions{width:100%}.room-combat-toolbar-actions .button{flex:1}.room-combatant-list{grid-template-columns:1fr}}
