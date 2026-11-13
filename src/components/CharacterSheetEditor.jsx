@@ -84,7 +84,7 @@ function CombatActionEditor({ title, actions, kind, onChange }) {
   const update = (index, key, value) => onChange(actions.map((item, i) => i === index ? { ...item, [key]: value } : item));
   const add = () => onChange([...actions, {
     id: `${kind}-${Date.now()}`, name: "", description: "", testFormula: "1d20",
-    damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", peCost: 0,
+    damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", healingFormula: "", effectType: kind === "attack" ? "damage" : "utility", statusEffect: "", peCost: 0,
     actionCost: "padrão", range: "", skill: "Luta",
   }]);
   return <Section title={title} variant="combat-actions">
