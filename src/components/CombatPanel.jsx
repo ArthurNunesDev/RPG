@@ -136,7 +136,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   ), [characters, campaignId, isGm, userId]);
   const sortedCombatants = useMemo(() => [...combatants].sort((a, b) => a.turn_order - b.turn_order), [combatants]);
   const eligibleCombatants = useMemo(() => sortedCombatants.filter((item) => item.is_active && !item.turn_blocked), [sortedCombatants]);
-  const currentCombatant = eligibleCombatants[encounter?.turn_index ?? 0] ?? null;
+  const currentCombatant = eligibleCombatants[encounter?.turn_index ?? 0] ?? null;\n  const ownCombatant = sortedCombatants.find((item) => item.owner_id === userId && item.side === "players" && item.is_active && !item.turn_blocked && item.turn_control === "player") ?? null;
   const pendingRequests = requests.filter((request) => request.status === "pending");
   const availableToAdd = approvedCharacters.filter((character) => !combatants.some((item) => item.character_id === character.id));
   const actorForControls = sortedCombatants.find((item) => item.character_id === selectedActor) ?? currentCombatant;
@@ -340,14 +340,14 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
 
   const submitAction = async (actor, target, action, kind, asGm = false) => {
     if (!encounter || !actor || !action || ((kind === "attack" || (kind === "ability" && (action.effectType !== "utility" || action.statusEffect))) && !target) || busy) return;
-    if (!asGm && (!isMyTurn || encounter.turns_paused || actor.owner_id !== userId || actor.turn_blocked || actor.turn_control !== "player")) {
+    const isReaction = ["dodge", "counterattack", "defend"].includes(action.actionType);\n    if (!asGm && ((!isMyTurn && !isReaction) || encounter.turns_paused || actor.owner_id !== userId || actor.turn_blocked || actor.turn_control !== "player" || (isReaction && actor.actions_used?.reaction))) {
       setError("Você não pode agir neste turno. Aguarde a liberação do mestre."); return;
     }
     setBusy(true); setError(""); setNotice("");
     try {
       const result = target || (kind === "ability" && action.effectType === "utility") ? resolveActionRoll(actor, target, action, kind) : null;
       const payload = {
-        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, actionType: action.actionType, statusEffect: action.statusEffect, actionCost: action.actionCost || "padrão", peCost: Number(action.peCost) || 0 },
+        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, actionType: action.actionType, statusEffect: action.statusEffect, actionCost: isReaction ? "reação" : (action.actionCost || "padrão"), peCost: Number(action.peCost) || 0 },
         roll: result,
         totalDamage: result?.totalDamage || 0,
         message: result?.message || `${actor.character_name} usou ${action.name}.`,
@@ -482,6 +482,14 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
             <label className="room-combat-field"><span>Alvo</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione o alvo</option>{sortedCombatants.filter((item)=>item.character_id!==currentCombatant.character_id&&item.is_active&&!item.turn_blocked).map((item)=><option key={item.id} value={item.character_id}>{item.character_name} · {item.current_hp}/{item.max_hp} PV</option>)}</select></label>
             <div className="room-combat-action-cards">{[...getActions(currentCombatant,"attacks").map((a)=>({...a,kind:"attack"})),...getActions(currentCombatant,"abilities").map((a)=>({...a,kind:"ability"}))].map((action,index)=><article key={action.id||index}><div><strong>{action.name}</strong><small>{action.kind==="attack"?(action.damageFormula||"Sem dano definido"):(action.actionType==="dodge"?"Esquiva":action.actionType==="counterattack"?"Contra-ataque":action.actionType==="defend"?"Defesa":"Habilidade")} · {Number(action.peCost)||0} PE</small><p>{action.description}</p></div><button className="button button-secondary" type="button" disabled={busy || ((action.kind==="attack"||(action.kind==="ability"&&(action.effectType!=="utility"||action.statusEffect)))&&!targetCombatant)} onClick={()=>submitAction(currentCombatant,targetCombatant,action,action.kind,false)}>Usar</button></article>)}</div>
             {!getActions(currentCombatant,"attacks").length&&!getActions(currentCombatant,"abilities").length&&<p className="room-readonly-note">Sua ficha ainda não possui ataques ou habilidades cadastrados.</p>}
+          </div>}
+          {!isGm && !isObserver && ownCombatant && !isMyTurn && !encounter.turns_paused && <div className="panel room-player-actions room-player-reactions">
+            <span className="eyebrow">REAÇÃO DISPONÍVEL</span><h3>Esquiva e contra-ataque</h3>
+            <p>Você pode usar uma reação por rodada. O mestre receberá a solicitação para confirmar o resultado.</p>
+            <label className="room-combat-field"><span>Alvo da reação (quando necessário)</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione</option>{sortedCombatants.filter((item)=>item.side==="enemies"&&item.is_active).map((item)=><option key={item.id} value={item.character_id}>{item.character_name}</option>)}</select></label>
+            <div className="room-combat-action-cards">{getActions(ownCombatant,"abilities").filter((action)=>["dodge","counterattack","defend"].includes(action.actionType)).map((action,index)=><article key={action.id||index}><div><strong>{action.actionType==="dodge"?"Esquiva":action.actionType==="counterattack"?"Contra-ataque":"Defender"} · {action.name}</strong><small>Reação · {Number(action.peCost)||0} PE</small><p>{action.description}</p></div><button className="button button-secondary" type="button" disabled={busy||ownCombatant.actions_used?.reaction||((action.actionType==="counterattack"||action.effectType==="damage")&&!targetCombatant)} onClick={()=>submitAction(ownCombatant,targetCombatant,action,"ability",false)}>Reagir</button></article>)}</div>
+            {ownCombatant.actions_used?.reaction && <small>Reação já utilizada nesta rodada.</small>}
+            {!getActions(ownCombatant,"abilities").some((action)=>["dodge","counterattack","defend"].includes(action.actionType)) && <small>Cadastre esquiva, contra-ataque ou defesa como reação na ficha.</small>}
           </div>}
           {isObserver && <p className="room-readonly-note">Você está acompanhando o combate como observador.</p>}
         </section>
