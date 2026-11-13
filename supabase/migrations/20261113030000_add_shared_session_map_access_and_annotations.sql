@@ -53,14 +53,8 @@ create table if not exists public.session_map_states (
   active_map_id uuid references public.campaign_maps(id) on delete set null,
   is_open boolean not null default false,
   updated_by uuid references public.profiles(id) on delete set null,
-  updated_at timestamptz not null default now(),
-  constraint session_map_state_map_campaign_fk
-    foreign key (active_map_id, campaign_id)
-    references public.campaign_maps(id, campaign_id)
-    deferrable initially deferred
+  updated_at timestamptz not null default now()
 );
--- campaign_maps.id is globally unique; use a trigger-safe campaign/map consistency check instead of relying on a composite unique key.
-alter table public.session_map_states drop constraint if exists session_map_state_map_campaign_fk;
 alter table public.session_map_states enable row level security;
 revoke all on public.session_map_states from public, anon;
 grant select, insert, update on public.session_map_states to authenticated;
