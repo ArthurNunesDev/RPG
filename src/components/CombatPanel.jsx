@@ -186,7 +186,7 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
     try {
       const { error: updateError } = await supabase.from("combatants").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", combatant.id);
       if (updateError) throw updateError;
-      if (Object.prototype.hasOwnProperty.call(patch, "turn_blocked")) {
+      if (Object.prototype.hasOwnProperty.call(patch, "turn_blocked") || Object.prototype.hasOwnProperty.call(patch, "is_active")) {
         const { data: refreshed, error: refreshError } = await supabase.from("combatants")
           .select("id,is_active,turn_blocked,turn_order").eq("encounter_id", encounter.id).order("turn_order", { ascending: true });
         if (refreshError) throw refreshError;
@@ -401,7 +401,8 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
               <div className="room-combatant-info"><strong>{combatant.character_name}</strong><small>{combatant.side === "players" ? "Jogador" : combatant.side === "enemies" ? "Inimigo" : combatant.side === "allies" ? "Aliado" : "Neutro"} · Iniciativa {combatant.initiative} · Defesa {combatant.defense}</small>
                 <div className="room-combatant-hp"><span style={{width:(combatant.max_hp>0?Math.max(0,Math.min(100,combatant.current_hp/combatant.max_hp*100)):0)+"%"}}/></div>
                 <small>{combatant.current_hp}/{combatant.max_hp} PV · {combatant.current_pe}/{combatant.max_pe} PE</small>
-                <small>{combatant.turn_blocked ? "Turno bloqueado" : combatant.turn_control === "player" ? "Ação do jogador liberada" : "Ação controlada pelo mestre"}</small>
+                <small>{!combatant.is_active ? "Fora de combate" : combatant.turn_blocked ? "Turno bloqueado" : combatant.turn_control === "player" ? "Ação do jogador liberada" : "Ação controlada pelo mestre"}</small>
+                {combatant.conditions?.length > 0 && <small className="room-combat-conditions">Condições: {combatant.conditions.join(", ")}</small>}
               </div>
               {isCurrent && <CheckCircle2 size={18}/>}
               {isGm && <div className="room-combatant-controls">
@@ -409,7 +410,9 @@ export default function CombatPanel({ sessionId, campaignId, characters, userId,
                 <button className="icon-button" type="button" aria-label="Mover para baixo" disabled={busy || index===sortedCombatants.length-1} onClick={() => reorderCombatant(combatant,1)}><ArrowDown size={14}/></button>
                 <button className="icon-button" type="button" aria-label={combatant.turn_blocked ? "Desbloquear turno" : "Bloquear turno"} disabled={busy} onClick={() => updateCombatant(combatant,{turn_blocked:!combatant.turn_blocked},"Permissão de turno atualizada.")}>{combatant.turn_blocked?<Lock size={14}/>:<LockOpen size={14}/>}</button>
                 <button className="icon-button" type="button" aria-label="Alternar controle do turno" disabled={busy} onClick={() => updateCombatant(combatant,{turn_control:combatant.turn_control==="player"?"gm":"player"},"Controle do turno atualizado.")}><UserCog size={14}/></button>
-                {!combatant.turn_blocked && <button className="icon-button" type="button" aria-label="Definir como turno atual" disabled={busy} onClick={() => setTurn(activeIndex)}><Check size={14}/></button>}
+                <button className="icon-button" type="button" aria-label={combatant.is_active ? "Marcar fora de combate" : "Reativar combatente"} disabled={busy} onClick={() => updateCombatant(combatant,{is_active:!combatant.is_active},"Estado do combatente atualizado.")}>{combatant.is_active?<X size={14}/>:<Check size={14}/>}</button>
+                {combatant.conditions?.length > 0 && <button className="icon-button" type="button" aria-label="Remover condições" disabled={busy} onClick={() => updateCombatant(combatant,{conditions:[]},"Condições removidas.")}><Shield size={14}/></button>}
+                {!combatant.turn_blocked && combatant.is_active && <button className="icon-button" type="button" aria-label="Definir como turno atual" disabled={busy} onClick={() => setTurn(activeIndex)}><Check size={14}/></button>}
               </div>}
             </article>;
           })}</div>
