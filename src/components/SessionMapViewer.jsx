@@ -135,9 +135,9 @@ export default function SessionMapViewer({ url, title, annotations, isGm, viewpo
         {isGm ? <div className="room-map-editor-toolbar">
           {tools.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={tool === id ? "active" : ""} onClick={() => setTool(id)} title={label} aria-label={label}><Icon size={15} /></button>)}
           <span className="room-map-toolbar-divider" />
-          <button type="button" onClick={() => setZoom((value) => { const next = clamp(value - 0.15, 0.5, 3); onViewportChange?.({ zoom: next, x: offset.x, y: offset.y }); return next; })} disabled={zoom <= 0.5} aria-label="Diminuir zoom"><ZoomOut size={15} /></button>
+          <button type="button" onClick={() => { const next = clamp(zoom - 0.15, 0.5, 3); setZoom(next); onViewportChange?.({ zoom: next, x: offset.x, y: offset.y }); }} disabled={zoom <= 0.5} aria-label="Diminuir zoom"><ZoomOut size={15} /></button>
           <span className="room-map-zoom-value">{Math.round(zoom * 100)}%</span>
-          <button type="button" onClick={() => setZoom((value) => { const next = clamp(value + 0.15, 0.5, 3); onViewportChange?.({ zoom: next, x: offset.x, y: offset.y }); return next; })} disabled={zoom >= 3} aria-label="Aumentar zoom"><ZoomIn size={15} /></button>
+          <button type="button" onClick={() => { const next = clamp(zoom + 0.15, 0.5, 3); setZoom(next); onViewportChange?.({ zoom: next, x: offset.x, y: offset.y }); }} disabled={zoom >= 3} aria-label="Aumentar zoom"><ZoomIn size={15} /></button>
           <button type="button" onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); onViewportChange?.({ zoom: 1, x: 0, y: 0 }); }} title="Centralizar"><Crosshair size={15} /></button>
         </div> : <span className="room-readonly-note"><Crosshair size={14} /> Somente visualização</span>}
       </div>
