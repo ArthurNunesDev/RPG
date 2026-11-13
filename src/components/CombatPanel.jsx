@@ -67,7 +67,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [selectedActor, setSelectedActor] = useState("");
+  const [selectedActor, setSelectedActor] = useState("");\n  const [selectedNewCombatant, setSelectedNewCombatant] = useState("");
   const [selectedTarget, setSelectedTarget] = useState("");
   const [selectedAction, setSelectedAction] = useState("");
   const [manualDamage, setManualDamage] = useState("0");
@@ -135,7 +135,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   const sortedCombatants = useMemo(() => [...combatants].sort((a, b) => a.turn_order - b.turn_order), [combatants]);
   const eligibleCombatants = useMemo(() => sortedCombatants.filter((item) => item.is_active && !item.turn_blocked), [sortedCombatants]);
   const currentCombatant = eligibleCombatants[encounter?.turn_index ?? 0] ?? null;
-  const pendingRequests = requests.filter((request) => request.status === "pending");
+  const pendingRequests = requests.filter((request) => request.status === "pending");\n  const availableToAdd = approvedCharacters.filter((character) => !combatants.some((item) => item.character_id === character.id));
   const actorForControls = sortedCombatants.find((item) => item.character_id === selectedActor) ?? currentCombatant;
   const actorAttacks = getActions(actorForControls, "attacks");
   const actorAbilities = getActions(actorForControls, "abilities");
@@ -188,6 +188,43 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
       await loadCombat();
       report("Combate iniciado. O mestre pode ajustar a ordem e o controle de cada turno.");
     } catch (err) { fail(err, "Não foi possível iniciar o combate."); }
+    finally { setBusy(false); }
+  };
+
+  const addCombatant = async () => {
+    if (!isGm || !encounter || busy || !selectedNewCombatant) return;
+    const character = availableToAdd.find((item) => item.id === selectedNewCombatant);
+    if (!character) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const initiative = getOrderInitiative(character);
+      const vitals = getOrderVitals(character);
+      const { data: created, error: insertError } = await supabase.from("combatants").insert({
+        encounter_id: encounter.id, character_id: character.id, character_name: character.name,
+        owner_id: character.owner_id, side: getSide(character), initiative: initiative.total,
+        initiative_rolls: initiative.rolls, current_hp: vitals.hp, max_hp: vitals.hpMax,
+        current_pe: vitals.pe, max_pe: vitals.peMax, current_pd: vitals.pd, max_pd: vitals.pdMax,
+        defense: Number(character.sheet?.vitals?.defense) || 10,
+        turn_order: sortedCombatants.length ? Math.max(...sortedCombatants.map((item) => item.turn_order)) + 1 : 1,
+        sort_order: sortedCombatants.length,
+        turn_control: getSide(character) === "players" ? "player" : "gm",
+      }).select("id,character_id,owner_id").single();
+      if (insertError) throw insertError;
+      const { error: sheetError } = await supabase.from("combatant_sheets").insert({
+        combatant_id: created.id, character_id: character.id, owner_id: character.owner_id,
+        sheet_snapshot: character.sheet && typeof character.sheet === "object" ? character.sheet : {},
+      });
+      if (sheetError) {
+        await supabase.from("combatants").delete().eq("id", created.id);
+        throw sheetError;
+      }
+      const { error: eventError } = await supabase.from("combat_events").insert({
+        encounter_id: encounter.id, actor_character_id: character.id, actor_name: character.name,
+        event_type: "initiative", result: { total: initiative.total, rolls: initiative.rolls, message: `${character.name} entrou no combate.` }, created_by: userId,
+      });
+      if (eventError) throw eventError;
+      setSelectedNewCombatant(""); await loadCombat(true); report(`${character.name} adicionado ao combate.`);
+    } catch (err) { fail(err, "Não foi possível adicionar o combatente."); }
     finally { setBusy(false); }
   };
 
@@ -305,7 +342,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     }
     setBusy(true); setError(""); setNotice("");
     try {
-      const result = target ? resolveActionRoll(actor, target, action, kind) : null;
+      const result = target || (kind === "ability" && action.effectType === "utility") ? resolveActionRoll(actor, target, action, kind) : null;
       const payload = {
         action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, statusEffect: action.statusEffect, actionCost: action.actionCost || "padrão", peCost: Number(action.peCost) || 0 },
         roll: result,
@@ -434,6 +471,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
             {actorForControls && <div className="room-combat-actions-row"><label><span>Dano</span><input type="number" min="0" value={manualDamage} onChange={(e)=>setManualDamage(e.target.value)}/></label><label><span>Cura</span><input type="number" min="0" value={manualHealing} onChange={(e)=>setManualHealing(e.target.value)}/></label><button className="button button-secondary" type="button" disabled={busy || !targetCombatant || (!Number(manualDamage)&&!Number(manualHealing))} onClick={applyManualChange}>Aplicar ao alvo</button></div>}
             <label className="room-combat-field"><span>Alvo para dano ou cura</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione o alvo</option>{sortedCombatants.map((item)=><option key={item.id} value={item.character_id}>{item.character_name}</option>)}</select></label>
             {actorForControls && <div className="room-combat-actions-row"><label><span>Ação do combatente</span><select value={selectedAction} onChange={(e)=>setSelectedAction(e.target.value)}><option value="">Selecione ataque/habilidade</option>{actorAttacks.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Ataque · {a.name}</option>)}{actorAbilities.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Habilidade · {a.name}</option>)}</select></label><button className="button button-primary" type="button" disabled={busy || !selectedActionObject || (actorAttacks.includes(selectedActionObject)&&!targetCombatant)||(selectedActionObject?.effectType!=="utility"&&actorAbilities.includes(selectedActionObject)&&!targetCombatant)} onClick={()=>submitAction(actorForControls,targetCombatant,selectedActionObject,actorAttacks.includes(selectedActionObject)?"attack":"ability",true)}>Executar ação</button></div>}
+            <div className="room-combat-actions-row"><label><span>Adicionar personagem / NPC</span><select value={selectedNewCombatant} onChange={(e)=>setSelectedNewCombatant(e.target.value)}><option value="">Selecione</option>{availableToAdd.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="button button-secondary" type="button" disabled={busy || !selectedNewCombatant} onClick={addCombatant}>Adicionar</button></div>
             <button className="button button-secondary" type="button" disabled={busy || !eligibleCombatants.length} onClick={()=>advanceTurn(true)}><SkipForward size={14}/> Pular turno atual</button>
           </div>}
           {!isGm && currentCombatant?.owner_id===userId && currentCombatant.turn_control==="player" && !currentCombatant.turn_blocked && !encounter.turns_paused && !isObserver && <div className="panel room-player-actions">
