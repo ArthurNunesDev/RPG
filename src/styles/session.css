@@ -98,3 +98,38 @@
 .room-combat-log p time{flex:0 0 auto;color:#8e8790;font-size:9px}
 .room-combat-log>small{color:#928b93;font-size:9px}
 @media(max-width:760px){.room-combat-toolbar{align-items:stretch;flex-direction:column}.room-combat-toolbar-actions{width:100%}.room-combat-toolbar-actions .button{flex:1}.room-combatant-list{grid-template-columns:1fr}}
+
+
+/* Expanded turn and action management */
+.room-combat-notice{margin:0;padding:10px 13px;border:1px solid rgba(111,166,117,.28);border-radius:8px;background:rgba(73,130,80,.1);color:#b9d8b5;font-size:10px}
+.room-combat-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.85fr);gap:14px;align-items:start}
+.room-combat-main,.room-combat-side{display:flex;min-width:0;flex-direction:column;gap:13px}
+.room-combatant.blocked{opacity:.55;border-style:dashed}
+.room-combatant-controls{display:flex;flex-wrap:wrap;gap:2px;margin-left:auto}
+.room-combat-admin,.room-player-actions,.room-combat-requests{display:flex;flex-direction:column;gap:12px;padding:15px}
+.room-combat-admin .room-battle-heading h3,.room-player-actions h3,.room-combat-requests .room-battle-heading h3{margin:4px 0 0;color:#e8e0d4;font:16px "Marcellus",Georgia,serif}
+.room-combat-admin .room-battle-heading>svg{color:#c9a46f}
+.room-combat-field{display:flex;min-width:0;flex-direction:column;gap:5px}
+.room-combat-field>span,.room-combat-actions-row label>span{color:#a9a1a9;font-size:9px}
+.room-combat-field select,.room-combat-actions-row input,.room-combat-actions-row select{width:100%;min-width:0;padding:9px 10px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:#17151b;color:#e8e0d4;font:11px inherit}
+.room-combat-actions-row{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
+.room-combat-actions-row label{display:flex;min-width:90px;flex:1;flex-direction:column;gap:5px}
+.room-combat-actions-row>.button{flex:0 0 auto}
+.room-combat-action-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.room-combat-action-cards article{display:flex;min-width:0;align-items:flex-start;justify-content:space-between;gap:8px;padding:11px;border:1px solid rgba(201,166,107,.17);border-radius:8px;background:rgba(255,255,255,.025)}
+.room-combat-action-cards article>div{min-width:0}
+.room-combat-action-cards strong,.room-combat-requests article strong{display:block;color:#e8e0d4;font-size:10px}
+.room-combat-action-cards small,.room-combat-requests article small{display:block;margin-top:4px;color:#c9a46f;font-size:8px}
+.room-combat-action-cards p{margin:6px 0 0;color:#9b949c;font-size:9px;line-height:1.5}
+.room-combat-requests article{display:flex;flex-direction:column;gap:5px;padding:10px 0;border-top:1px solid rgba(255,255,255,.07)}
+.room-combat-requests article>div{display:flex;gap:6px;margin-top:5px}
+.room-combat-requests article>div .button{flex:1;justify-content:center}
+.room-combat-log{min-width:0}
+.room-combat-log p{overflow-wrap:anywhere}
+.sheet-combat-action{grid-column:1/-1;padding:13px;border:1px solid rgba(201,166,107,.2);border-radius:9px;background:rgba(0,0,0,.12)}
+.sheet-combat-action-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.sheet-combat-action-heading strong{color:#e8e0d4;font-size:11px}
+.sheet-combat-action-heading .button{padding:5px 8px;font-size:9px}
+.character-sheet-section--combat-actions>.button{margin-top:8px}
+@media(max-width:900px){.room-combat-layout{grid-template-columns:1fr}.room-combat-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.room-combat-log{grid-column:1/-1}}
+@media(max-width:640px){.room-combat-side{display:flex}.room-combat-action-cards{grid-template-columns:1fr}.room-combatant{flex-wrap:wrap}.room-combatant-controls{width:100%;justify-content:flex-end}.room-combat-actions-row{align-items:stretch;flex-direction:column}.room-combat-actions-row label,.room-combat-actions-row>.button{width:100%}}
