@@ -81,7 +81,7 @@ function normalizeCombatActions(value, kind) {
 }
 
 function CombatActionEditor({ title, actions, kind, onChange }) {
-  const update = (index, key, value) => onChange(actions.map((item, i) => i === index ? { ...item, [key]: value } : item));
+  const update = (index, key, value) => onChange(actions.map((item, i) => i === index ? { ...item, [key]: value, ...(key === "actionType" && ["dodge", "counterattack", "defend"].includes(value) && item.actionCost === "padrão" ? { actionCost: "reação" } : {}) } : item));
   const add = () => onChange([...actions, {
     id: `${kind}-${Date.now()}`, name: "", description: "", testFormula: "1d20",
     damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", healingFormula: "", effectType: kind === "attack" ? "damage" : "utility", actionType: kind === "attack" ? "attack" : "ability", statusEffect: "", peCost: 0,
