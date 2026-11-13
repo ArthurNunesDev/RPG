@@ -133,3 +133,6 @@
 .character-sheet-section--combat-actions>.button{margin-top:8px}
 @media(max-width:900px){.room-combat-layout{grid-template-columns:1fr}.room-combat-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.room-combat-log{grid-column:1/-1}}
 @media(max-width:640px){.room-combat-side{display:flex}.room-combat-action-cards{grid-template-columns:1fr}.room-combatant{flex-wrap:wrap}.room-combatant-controls{width:100%;justify-content:flex-end}.room-combat-actions-row{align-items:stretch;flex-direction:column}.room-combat-actions-row label,.room-combat-actions-row>.button{width:100%}}
+
+.room-combat-conditions{color:#d8b67c!important;overflow-wrap:anywhere}
+.room-combatant.blocked .room-combatant-order{border-color:rgba(191,102,102,.35);color:#cf8d8d}
