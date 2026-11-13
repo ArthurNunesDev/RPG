@@ -109,3 +109,36 @@
  .character-skill-row { grid-template-columns: 1fr 1fr; }
  .character-skill-row > div { grid-column: 1 / -1; }
 }
+
+
+/* Refined character sheet layout */
+.character-sheet-editor { gap: 16px; }
+.character-sheet-intro { position: relative; overflow: hidden; padding: 19px 20px; border-color: rgba(201,166,107,.22); background: linear-gradient(115deg,rgba(201,166,107,.09),rgba(255,255,255,.018) 58%); }
+.character-sheet-intro::after { position: absolute; top: 0; right: 0; width: 3px; height: 100%; background: linear-gradient(180deg,var(--gold-bright),transparent); content: ""; }
+.character-sheet-intro strong { font-size: 19px; }
+.character-sheet-section { gap: 13px; padding: 17px; border-color: rgba(255,255,255,.085); background: linear-gradient(145deg,rgba(255,255,255,.025),rgba(10,11,15,.32)); }
+.character-sheet-section h3 { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.character-sheet-section h3::after { height: 1px; flex: 1; background: linear-gradient(90deg,rgba(201,166,107,.24),transparent); content: ""; }
+.character-sheet-grid { gap: 12px; }
+.sheet-field { gap: 7px; color: #bcb5aa; font-size: 10px; letter-spacing: .015em; }
+.sheet-field input,.sheet-field textarea { min-height: 38px; padding: 10px 11px; border-color: rgba(255,255,255,.105); background: rgba(8,9,13,.48); transition: border-color 140ms ease,box-shadow 140ms ease; }
+.sheet-field textarea { min-height: 86px; }
+.character-sheet-section--attributes .character-sheet-grid { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 9px; }
+.character-sheet-section--attributes .sheet-field { align-items: center; gap: 8px; padding: 12px 8px; border: 1px solid rgba(201,166,107,.16); border-radius: 8px; background: rgba(201,166,107,.045); text-align: center; }
+.character-sheet-section--attributes .sheet-field input { width: 100%; min-height: 43px; border-color: rgba(201,166,107,.2); color: #f0e6d4; font-family: "Marcellus",Georgia,serif; font-size: 18px; text-align: center; }
+.character-sheet-section--vitals .character-sheet-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.character-sheet-section--skills .character-sheet-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 18px; }
+.character-sheet-section--skills .character-skill-row { grid-template-columns: minmax(90px,1fr) minmax(105px,.9fr) minmax(90px,.75fr); gap: 8px; padding: 10px 0; border-bottom-color: rgba(255,255,255,.07); }
+.character-sheet-section--skills .character-skill-row > div strong { font-size: 10px; }
+.character-sheet-section--skills .character-skill-row label { font-size: 8px; }
+.character-sheet-section--skills .character-skill-row input,.character-sheet-section--skills .character-skill-row select { min-height: 34px; padding: 7px 8px; border-color: rgba(255,255,255,.1); background: rgba(8,9,13,.48); }
+@media(max-width:850px) {
+ .character-sheet-section--skills .character-sheet-grid { grid-template-columns: 1fr; }
+ .character-sheet-section--vitals .character-sheet-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:600px) {
+ .character-sheet-section { padding: 13px; }
+ .character-sheet-section--attributes .character-sheet-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+ .character-sheet-section--skills .character-skill-row { grid-template-columns: 1fr 1fr; }
+ .character-sheet-section--skills .character-skill-row > div { grid-column: 1 / -1; }
+}
