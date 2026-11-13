@@ -802,7 +802,7 @@ export default function SessionPage() {
 
           {activeSection === "battles" && <section className="room-section room-battles">
             <div className="room-section-heading"><div><span className="eyebrow">CONFRONTO E SOBREVIVÊNCIA</span><h2>Batalhas</h2><p>Iniciativa, ordem de turnos e histórico compartilhados em tempo real.</p></div></div>
-            <CombatPanel sessionId={sessionId} campaignId={campaignId} characters={characters} userId={user?.id} isGm={isGm} isObserver={isObserver} onRefreshCharacters={() => loadSession(true)} />
+            <CombatPanel sessionId={sessionId} campaignId={campaignId} gameSystemId={campaignGameSystemId} characters={characters} userId={user?.id} isGm={isGm} isObserver={isObserver} onRefreshCharacters={() => loadSession(true)} />
           </section>}
 
           {activeSection === "dice" && <section className="room-section"><div className="room-section-heading"><div><span className="eyebrow">SORTE E DESTINO</span><h2>Mesa de rolagem</h2><p>Role dados e consulte os registros pessoais ou compartilhados da campanha.</p></div></div><DicePage campaignIdProp={campaignId} embedded readOnly={isObserver} /></section>}
