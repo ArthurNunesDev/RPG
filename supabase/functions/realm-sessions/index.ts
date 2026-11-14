@@ -262,21 +262,6 @@ Deno.serve(async (request: Request) => {
   const sessionId = typeof payload.sessionId === "string" ? payload.sessionId : "";
   if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return respond({ error: "Sessão inválida." }, 400);
 
-  if (action === "active") {
-    const campaignId = typeof payload.campaignId === "string" ? payload.campaignId : "";
-    if (!/^[0-9a-f-]{36}$/i.test(campaignId)) return respond({ error: "Campanha inválida." }, 400);
-    const { data, error } = await admin.rpc("get_active_realm_campaign_session", {
-      p_user_id: userId,
-      p_campaign_id: campaignId,
-    });
-    if (error) {
-      const message = errorMessage(error);
-      if (message.includes("CAMPAIGN_GM_REQUIRED")) return respond({ error: "Somente o mestre desta campanha pode abrir a mesa." }, 403);
-      return respond({ error: "Não foi possível carregar o PIN permanente desta campanha." }, 404);
-    }
-    return respond({ session: data });
-  }
-
   if (action === "info") {
     const { data, error } = await admin.rpc("get_realm_session", {
       p_user_id: userId,
