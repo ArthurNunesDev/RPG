@@ -246,7 +246,7 @@ export default function CharactersPage() {
         : supabase.from("characters").insert({
           ...payload,
           owner_id: user.id,
-          campaign_approval_status: form.campaignId ? (isNpc ? "approved" : "pending") : "not_submitted",
+          campaign_approval_status: form.campaignId ? (isNpc || campaign?.role === "gm" ? "approved" : "pending") : "not_submitted",
         });
 
       const { data, error: saveError } = await request.select("id").single();
