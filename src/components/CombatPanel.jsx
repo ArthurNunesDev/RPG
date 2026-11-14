@@ -226,16 +226,23 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     if (!isGm || busy || !encounter) return;
     setBusy(true);
     try {
-      const { error: updateError } = await supabase.from("combatants").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", combatant.id);
-      if (updateError) throw updateError;
-      if (Object.prototype.hasOwnProperty.call(patch, "turn_blocked") || Object.prototype.hasOwnProperty.call(patch, "is_active")) {
-        const { data: refreshed, error: refreshError } = await supabase.from("combatants")
-          .select("id,is_active,turn_blocked,turn_order").eq("encounter_id", encounter.id).order("turn_order", { ascending: true });
-        if (refreshError) throw refreshError;
-        const available = (refreshed || []).filter((item) => item.is_active && !item.turn_blocked);
-        const safeIndex = available.length ? Math.min(encounter.turn_index, available.length - 1) : 0;
-        const { error: turnError } = await supabase.from("combat_encounters").update({ turn_index: safeIndex, updated_at: new Date().toISOString() }).eq("id", encounter.id);
-        if (turnError) throw turnError;
+      const changesTurnAvailability = Object.prototype.hasOwnProperty.call(patch, "turn_blocked")
+        || Object.prototype.hasOwnProperty.call(patch, "is_active");
+      if (changesTurnAvailability) {
+        const { error: stateError } = await supabase.rpc("set_combatant_turn_state", {
+          p_combatant_id: combatant.id,
+          p_turn_blocked: patch.turn_blocked ?? combatant.turn_blocked,
+          p_is_active: patch.is_active ?? combatant.is_active,
+        });
+        if (stateError) throw stateError;
+        const remainingPatch = Object.fromEntries(Object.entries(patch).filter(([key]) => !["turn_blocked", "is_active"].includes(key)));
+        if (Object.keys(remainingPatch).length) {
+          const { error: extraError } = await supabase.from("combatants").update({ ...remainingPatch, updated_at: new Date().toISOString() }).eq("id", combatant.id);
+          if (extraError) throw extraError;
+        }
+      } else {
+        const { error: updateError } = await supabase.from("combatants").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", combatant.id);
+        if (updateError) throw updateError;
       }
       await loadCombat(true); if (message) report(message);
     } catch (err) { fail(err, "Não foi possível atualizar o combatente."); }
