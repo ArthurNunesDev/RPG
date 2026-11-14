@@ -142,3 +142,16 @@
  .character-sheet-section--skills .character-skill-row { grid-template-columns: 1fr 1fr; }
  .character-sheet-section--skills .character-skill-row > div { grid-column: 1 / -1; }
 }
+
+
+/* Attack and ability editor controls */
+.character-sheet-section--combat-actions > .character-sheet-grid { grid-template-columns: minmax(0, 1fr); }
+.character-sheet-section--combat-actions .sheet-combat-action { grid-column: 1 / -1; min-width: 0; padding: 13px; border: 1px solid rgba(201,166,107,.14); border-radius: 8px; background: rgba(0,0,0,.12); }
+.character-sheet-section--combat-actions .sheet-combat-action-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.character-sheet-section--combat-actions .sheet-combat-action-heading strong { min-width: 0; color: #e2d9ca; font-size: 11px; }
+.character-sheet-section--combat-actions .sheet-combat-action > .character-sheet-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.character-sheet-section--combat-actions > .character-sheet-grid > .button { grid-column: 1 / -1; justify-self: start; min-height: 40px; }
+@media(max-width:600px) {
+  .character-sheet-section--combat-actions .sheet-combat-action > .character-sheet-grid { grid-template-columns: 1fr; }
+  .character-sheet-section--combat-actions .sheet-combat-action-heading { align-items: flex-start; }
+}
