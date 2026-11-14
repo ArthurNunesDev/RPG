@@ -546,7 +546,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
                 <button className="icon-button" type="button" aria-label="Alternar controle do turno" disabled={busy} onClick={() => updateCombatant(combatant,{turn_control:combatant.turn_control==="player"?"gm":"player"},"Controle do turno atualizado.")}><UserCog size={14}/></button>
                 <button className="icon-button" type="button" aria-label={combatant.is_active ? "Marcar fora de combate" : "Reativar combatente"} disabled={busy} onClick={() => updateCombatant(combatant,{is_active:!combatant.is_active},"Estado do combatente atualizado.")}>{combatant.is_active?<X size={14}/>:<Check size={14}/>}</button>
                 {combatant.conditions?.length > 0 && <button className="icon-button" type="button" aria-label="Remover condições" disabled={busy} onClick={() => updateCombatant(combatant,{conditions:[]},"Condições removidas.")}><Shield size={14}/></button>}
-                {!combatant.turn_blocked && combatant.is_active && <button className="icon-button" type="button" aria-label="Definir como turno atual" disabled={busy} onClick={() => setTurn(activeIndex)}><Check size={14}/></button>}
+                {!combatant.turn_blocked && combatant.is_active && <button className="icon-button" type="button" aria-label="Definir como turno atual" disabled={busy || activeIndex === encounter.turn_index} onClick={() => setTurn(activeIndex)}><Check size={14}/></button>}
               </div>}
             </article>;
           })}</div>
