@@ -12,7 +12,7 @@ function getSide(character) {
 function getActions(character, kind) {
   const value = character?.sheet_snapshot?.[kind] ?? [];
   if (Array.isArray(value)) return value.filter((item) => item && typeof item === "object" && item.name);
-  return typeof value === "string" ? value.split("\n").filter(Boolean).map((name, index) => ({ id: kind + index, name, testFormula: "1d20", damageFormula: kind === "attacks" ? "2d10" : "", skill: "Luta" })) : [];
+  return typeof value === "string" ? value.split("\n").filter(Boolean).map((name) => ({ id: name, name, testFormula: "1d20", damageFormula: kind === "attacks" ? "2d10" : "", skill: "Luta" })) : [];
 }
 function describeEvent(event) {
   const result = event.result ?? {};
@@ -421,6 +421,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   const resolveRequest = async (request, approved) => {
     if (!isGm || busy) return;
     setBusy(true); setError(""); setNotice("");
+    let resolvedMessage = "";
     try {
       if (approved) {
         const { data, error: rpcError } = await supabase.rpc("resolve_combat_action", {
@@ -428,7 +429,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
           p_resolution: {},
         });
         if (rpcError) throw rpcError;
-        var resolvedMessage = data?.message || "Ação aprovada e aplicada.";
+        resolvedMessage = data?.message || "Ação aprovada e aplicada.";
       } else {
         const { error: updateError } = await supabase.from("combat_action_requests").update({
           status: "rejected", resolved_by: userId, resolved_at: new Date().toISOString(),
