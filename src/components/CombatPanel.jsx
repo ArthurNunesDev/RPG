@@ -96,7 +96,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
         return;
       }
       const [cb, ev, rq, fx] = await Promise.all([
-        supabase.from("combatants").select("*").eq("encounter_id", active.id).order("turn_order", { ascending: true }),
+        supabase.from("combatants").select("*").eq("encounter_id", active.id).order("turn_order", { ascending: true }).order("id", { ascending: true }),
         supabase.from("combat_events").select("*").eq("encounter_id", active.id).order("created_at", { ascending: false }).limit(60),
         supabase.from("combat_action_requests").select("*").eq("encounter_id", active.id).order("requested_at", { ascending: false }).limit(30),
         supabase.from("combat_effects").select("*").eq("encounter_id", active.id).gt("remaining_rounds", 0).order("created_at", { ascending: true }),
@@ -158,7 +158,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     item.campaign_id === campaignId && item.status === "active" &&
     (item.campaign_approval_status === "approved" || (isGm && item.character_type === "npc" && item.owner_id === userId))
   ), [characters, campaignId, isGm, userId]);
-  const sortedCombatants = useMemo(() => [...combatants].sort((a, b) => a.turn_order - b.turn_order), [combatants]);
+  const sortedCombatants = useMemo(() => [...combatants].sort((a, b) => a.turn_order - b.turn_order || a.id.localeCompare(b.id)), [combatants]);
   const eligibleCombatants = useMemo(() => sortedCombatants.filter((item) => item.is_active && !item.turn_blocked), [sortedCombatants]);
   const currentCombatant = eligibleCombatants[encounter?.turn_index ?? 0] ?? null;
   const ownCombatant = sortedCombatants.find((item) => item.owner_id === userId && item.side === "players" && item.is_active && !item.turn_blocked && item.turn_control === "player") ?? null;
@@ -401,12 +401,12 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     if (!isGm || !other || busy) return;
     setBusy(true);
     try {
-      const updates = await Promise.all([
-        supabase.from("combatants").update({ turn_order: other.turn_order, updated_at: new Date().toISOString() }).eq("id", combatant.id),
-        supabase.from("combatants").update({ turn_order: combatant.turn_order, updated_at: new Date().toISOString() }).eq("id", other.id),
-      ]);
-      const failed = updates.find((item) => item.error);
-      if (failed?.error) throw failed.error;
+      const { error: swapError } = await supabase.rpc("swap_combatant_turn_order", {
+        p_encounter_id: encounter.id,
+        p_first_combatant_id: combatant.id,
+        p_second_combatant_id: other.id,
+      });
+      if (swapError) throw swapError;
       await loadCombat(true);
     } catch (err) { fail(err, "Não foi possível reorganizar os turnos."); }
     finally { setBusy(false); }
