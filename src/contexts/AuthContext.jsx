@@ -1,13 +1,35 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "../lib/supabase.js";
 
 const AuthContext = createContext(null);
+
+async function fetchProfileData(userId) {
+  const [profileResult, privateResult] = await Promise.all([
+    supabase.from("profiles")
+      .select("id, username, display_name, avatar_url, preferred_role")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase.from("profile_private_data")
+      .select("preferences")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+
+  if (profileResult.error) throw profileResult.error;
+  if (privateResult.error) throw privateResult.error;
+
+  return profileResult.data
+    ? { ...profileResult.data, preferences: privateResult.data?.preferences ?? {} }
+    : null;
+}
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
+  const authRevisionRef = useRef(0);
+  const profileRequestRef = useRef(0);
 
   useEffect(() => {
     if (!supabase) {
@@ -16,49 +38,70 @@ export function AuthProvider({ children }) {
     }
 
     let active = true;
+    let currentUserId = null;
 
-    async function loadProfile(userId) {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, preferred_role, preferences")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (!active) return;
-      if (error) {
-        setProfileError(error.message);
+    async function loadProfile(userId, authRevision) {
+      const requestRevision = ++profileRequestRef.current;
+      try {
+        const nextProfile = await fetchProfileData(userId);
+        if (!active || authRevision !== authRevisionRef.current || requestRevision !== profileRequestRef.current) return;
+        setProfile(nextProfile);
+        setProfileError("");
+      } catch (error) {
+        if (!active || authRevision !== authRevisionRef.current || requestRevision !== profileRequestRef.current) return;
         setProfile(null);
-        return;
+        setProfileError(error instanceof Error ? error.message : "Não foi possível carregar o perfil.");
+      } finally {
+        if (active && authRevision === authRevisionRef.current && requestRevision === profileRequestRef.current) {
+          setLoading(false);
+        }
       }
-      setProfile(data);
-      setProfileError("");
     }
 
-    supabase.auth.getSession().then(async ({ data, error }) => {
-      if (!active) return;
-      if (error) setProfileError(error.message);
-      setSession(data?.session ?? null);
-      if (data?.session?.user) await loadProfile(data.session.user.id);
-      if (active) setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!active) return;
+    function applySession(nextSession, forceProfileReload = false) {
+      const nextUserId = nextSession?.user?.id ?? null;
       setSession(nextSession);
-      if (nextSession && (_event === "SIGNED_IN" || _event === "INITIAL_SESSION")) setLoading(true);
-      if (!nextSession) {
+
+      if (nextUserId === currentUserId && !forceProfileReload) return;
+
+      currentUserId = nextUserId;
+      authRevisionRef.current += 1;
+      profileRequestRef.current += 1;
+      const authRevision = authRevisionRef.current;
+
+      if (!nextUserId) {
         setProfile(null);
         setProfileError("");
         setLoading(false);
         return;
       }
-      // Defer profile I/O until Supabase finishes its auth callback.
-      Promise.resolve().then(() => loadProfile(nextSession.user.id))
-        .finally(() => { if (active) setLoading(false); });
+
+      setLoading(true);
+      void loadProfile(nextUserId, authRevision);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+      const shouldReloadProfile = ["INITIAL_SESSION", "SIGNED_IN", "USER_UPDATED"].includes(event);
+      applySession(nextSession, shouldReloadProfile);
     });
+
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (!active || authRevisionRef.current !== 0) return;
+        if (error) setProfileError(error.message);
+        applySession(data?.session ?? null, true);
+      })
+      .catch((error) => {
+        if (!active || authRevisionRef.current !== 0) return;
+        setProfileError(error instanceof Error ? error.message : "Não foi possível recuperar a sessão.");
+        setLoading(false);
+      });
 
     return () => {
       active = false;
+      authRevisionRef.current += 1;
+      profileRequestRef.current += 1;
       subscription.unsubscribe();
     };
   }, []);
@@ -77,14 +120,12 @@ export function AuthProvider({ children }) {
     loading,
     profileError,
     refreshProfile: async () => {
-      if (!supabase || !session?.user?.id) return;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, preferred_role, preferences")
-        .eq("id", session.user.id)
-        .maybeSingle();
-      if (error) throw error;
-      setProfile(data);
+      const userId = session?.user?.id;
+      if (!supabase || !userId) return;
+      const requestRevision = ++profileRequestRef.current;
+      const nextProfile = await fetchProfileData(userId);
+      if (requestRevision !== profileRequestRef.current) return;
+      setProfile(nextProfile);
       setProfileError("");
     },
     signOut: async () => {
