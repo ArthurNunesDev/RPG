@@ -235,18 +235,18 @@ export default function CampaignsPage() {
     setNotice("");
 
     try {
-      const { data, error: deleteError } = await supabase
-        .from("campaigns")
-        .delete()
-        .eq("id", campaign.id)
-        .eq("owner_id", user.id)
-        .select("id");
+      const { data, error: deleteError } = await supabase.functions.invoke("realm-sessions", {
+        body: { action: "delete-campaign", campaignId: campaign.id },
+      });
 
       if (deleteError) throw deleteError;
-      if (!data?.length) throw new Error("A campanha não foi encontrada ou você não tem permissão para excluí-la.");
+      if (data?.error) throw new Error(data.error);
+      if (data?.deleted !== true) throw new Error("A campanha não foi excluída.");
 
       setCampaigns((current) => current.filter((item) => item.id !== campaign.id));
-      setNotice("A campanha foi excluída com sucesso.");
+      setNotice(data.storageCleanupPending
+        ? "A campanha foi excluída, mas alguns arquivos ainda precisam de limpeza."
+        : "A campanha e seus arquivos foram excluídos com sucesso.");
       setCampaignToDelete(null);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir a campanha.");
