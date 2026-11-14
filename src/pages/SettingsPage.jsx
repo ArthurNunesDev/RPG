@@ -26,8 +26,8 @@ export default function SettingsPage() {
     if (!supabase || !user) return;
     setSaving(true); setError(""); setNotice("");
     try {
-      const { error: updateError } = await supabase.from("profiles")
-        .update({ preferences }).eq("id", user.id);
+      const { error: updateError } = await supabase.from("profile_private_data")
+        .update({ preferences }).eq("user_id", user.id);
       if (updateError) throw updateError;
       await refreshProfile();
       setNotice("Preferências salvas.");
