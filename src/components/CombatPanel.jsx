@@ -14,6 +14,12 @@ function getActions(character, kind) {
   if (Array.isArray(value)) return value.filter((item) => item && typeof item === "object" && item.name);
   return typeof value === "string" ? value.split("\n").filter(Boolean).map((name) => ({ id: name, name, testFormula: "1d20", damageFormula: kind === "attacks" ? "2d10" : "", skill: "Luta" })) : [];
 }
+
+function getRequestAction(combatants, request) {
+  const actor = combatants.find((item) => item.character_id === request.actor_character_id);
+  const kind = request.action_type === "attack" ? "attacks" : "abilities";
+  return getActions(actor, kind).find((action) => action.id === request.action_id || action.name === request.action_id) ?? null;
+}
 function describeEvent(event) {
   const result = event.result ?? {};
   return result.message || (event.event_type === "initiative" ? "Iniciativa registrada." : event.event_type);
@@ -531,7 +537,18 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
         </section>
         <aside className="room-combat-side">
           {isGm && <section className="panel room-combat-requests"><div className="room-battle-heading"><div><span className="eyebrow">AGUARDANDO MESTRE</span><h3>Solicitações ({pendingRequests.length})</h3></div><Activity size={17}/></div>
-            {pendingRequests.length ? pendingRequests.map((request)=><article key={request.id}><strong>{combatants.find((item)=>item.character_id===request.actor_character_id)?.character_name||"Personagem"} · {request.payload?.action?.name||request.action_type}</strong><small>{request.payload?.message||request.payload?.action?.description||"Ação solicitada"}</small><div><button className="button button-primary" type="button" disabled={busy} onClick={()=>resolveRequest(request,true)}>Aprovar e aplicar</button><button className="button button-secondary" type="button" disabled={busy} onClick={()=>resolveRequest(request,false)}>Recusar</button></div></article>) : <small>Nenhuma ação aguardando aprovação.</small>}
+            {pendingRequests.length ? pendingRequests.map((request) => {
+              const actor = combatants.find((item) => item.character_id === request.actor_character_id);
+              const action = getRequestAction(combatants, request);
+              return <article key={request.id}>
+                <strong>{actor?.character_name || "Personagem"} · {action?.name || "Ação não encontrada na ficha"}</strong>
+                <small>{action?.description || "Ação solicitada"}</small>
+                <div>
+                  <button className="button button-primary" type="button" disabled={busy || !action} onClick={() => resolveRequest(request, true)}>Aprovar e aplicar</button>
+                  <button className="button button-secondary" type="button" disabled={busy} onClick={() => resolveRequest(request, false)}>Recusar</button>
+                </div>
+              </article>;
+            }) : <small>Nenhuma ação aguardando aprovação.</small>}
           </section>}
           {effects.length>0 && <section className="panel room-combat-effects"><div className="room-battle-heading"><div><span className="eyebrow">EFEITOS ATIVOS</span><h3>Durações e condições</h3></div><Timer size={17}/></div>{effects.map((effect)=><article key={effect.id}><div><strong>{effect.effect_name} · {effect.target_name}</strong><small>{effect.damage_per_round} de dano por turno · {effect.remaining_rounds} turno(s) restante(s)</small></div>{isGm && (editingEffectId === effect.id ? <div className="room-combat-actions-row"><label><span>Nome</span><input value={editingEffectName} onChange={(e)=>setEditingEffectName(e.target.value)}/></label><label><span>Dano por turno</span><input type="number" min="0" value={editingEffectDamage} onChange={(e)=>setEditingEffectDamage(e.target.value)}/></label><label><span>Turnos restantes</span><input type="number" min="0" max="100" value={editingEffectRounds} onChange={(e)=>setEditingEffectRounds(e.target.value)}/></label><button className="button button-primary" type="button" disabled={busy} onClick={()=>savePeriodicEffect(effect)}>Salvar</button><button className="button button-secondary" type="button" disabled={busy} onClick={()=>setEditingEffectId("")}>Cancelar</button></div> : <div className="room-combat-actions-row"><button className="button button-secondary" type="button" disabled={busy} onClick={()=>beginEditPeriodicEffect(effect)}>Editar</button><button className="button button-secondary" type="button" disabled={busy} onClick={()=>removePeriodicEffect(effect)}>Encerrar</button></div>)}</article>)}</section>}<section className="panel room-combat-log"><div className="room-battle-heading"><div><span className="eyebrow">REGISTRO DA SESSÃO</span><h3>Histórico do combate</h3></div><button className="icon-button" type="button" onClick={()=>loadCombat()} aria-label="Atualizar histórico"><RefreshCw size={15}/></button></div>{events.length?events.map((event)=><p key={event.id}><time>{new Date(event.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</time>{describeEvent(event)}</p>):<small>Nenhuma ação registrada ainda.</small>}</section>
         </aside>
