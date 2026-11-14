@@ -14,44 +14,6 @@ function getActions(character, kind) {
   if (Array.isArray(value)) return value.filter((item) => item && typeof item === "object" && item.name);
   return typeof value === "string" ? value.split("\n").filter(Boolean).map((name, index) => ({ id: kind + index, name, testFormula: "1d20", damageFormula: kind === "attacks" ? "2d10" : "", skill: "Luta" })) : [];
 }
-function getSkillBonus(sheet, skillName) {
-  const skill = sheet?.skills?.[skillName] ?? {};
-  return Number(skill.training || 0) + Number(skill.bonus || 0) + Number(skill.other || 0);
-}
-function resolveActionRoll(actor, target, action, kind) {
-  const effectType = action.effectType || (kind === "attack" ? "damage" : "utility");
-  if (kind === "ability" && effectType === "healing") {
-    if (!target) throw new Error("Selecione o alvo que receberá a cura.");
-    const healing = action.healingFormula ? rollDice(action.healingFormula) : { total: 0, rolls: [] };
-    return { outcome: "healing", healing, totalHealing: healing.total, message: `${action.name}: cura de ${healing.total} PV.` };
-  }
-  if (kind === "ability" && effectType === "utility") {
-    const test = rollDice(action.testFormula || "1d20");
-    return { outcome: "utility", attackRoll: test, totalDamage: 0, totalHealing: 0, message: `${action.name}: resultado ${test.total}.` };
-  }
-  if (!target) throw new Error("Selecione um alvo para esta ação.");
-  const attackRoll = rollDice(action.testFormula || "1d20");
-  const bonus = getSkillBonus(actor.sheet_snapshot, action.skill || "Luta");
-  const totalAttack = { ...attackRoll, total: attackRoll.total + bonus };
-  const disaster = attackRoll.minimum;
-  const hit = !disaster && totalAttack.total >= Number(target.defense || 10);
-  let damage = null;
-  let criticalExtra = null;
-  if (hit && action.damageFormula) {
-    damage = rollDice(action.damageFormula);
-    if (damage.maximum && action.criticalExtraFormula) criticalExtra = rollDice(action.criticalExtraFormula);
-  }
-  return {
-    outcome: disaster ? "disaster" : !hit ? "miss" : damage?.maximum ? "critical" : "hit",
-    attackRoll: { ...totalAttack, bonus }, defense: Number(target.defense || 10),
-    damage, criticalExtra, totalDamage: (damage?.total || 0) + (criticalExtra?.total || 0),
-    totalHealing: 0,
-    message: disaster ? "Desastre: resultado mínimo no dado. O mestre define a consequência."
-      : !hit ? "Ataque não superou a defesa do alvo."
-      : damage?.maximum ? "Acerto crítico: dano máximo no dado."
-      : kind === "attack" ? "Ataque acertou." : "Habilidade acertou.",
-  };
-}
 function describeEvent(event) {
   const result = event.result ?? {};
   return result.message || (event.event_type === "initiative" ? "Iniciativa registrada." : event.event_type);
@@ -432,12 +394,9 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     }
     setBusy(true); setError(""); setNotice("");
     try {
-      const result = target || (kind === "ability" && action.effectType === "utility") ? resolveActionRoll(actor, target, action, kind) : null;
       const payload = {
-        action: { name: action.name, description: action.description, skill: action.skill, testFormula: action.testFormula, damageFormula: action.damageFormula, criticalExtraFormula: action.criticalExtraFormula, healingFormula: action.healingFormula, effectType: action.effectType, actionType: action.actionType, statusEffect: action.statusEffect, actionCost: isReaction ? "reação" : (action.actionCost || "padrão"), peCost: Number(action.peCost) || 0 },
-        roll: result,
-        totalDamage: result?.totalDamage || 0,
-        message: result?.message || `${actor.character_name} usou ${action.name}.`,
+        action: { name: action.name, description: action.description },
+        message: `${actor.character_name} solicitou ${action.name}.`,
       };
       const { data: createdRequest, error: insertError } = await supabase.from("combat_action_requests").insert({
         encounter_id: encounter.id, actor_character_id: actor.character_id,
@@ -448,7 +407,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
       if (asGm) {
         const { data, error: resolveError } = await supabase.rpc("resolve_combat_action", {
           p_request_id: createdRequest.id,
-          p_resolution: { damage: result?.totalDamage || 0, healing: result?.totalHealing || 0, pe_cost: Number(action.peCost) || 0, message: payload.message, outcome: result?.outcome || null, condition: result && ["hit", "critical", "utility"].includes(result.outcome) ? action.statusEffect || null : null },
+          p_resolution: {},
         });
         if (resolveError) throw resolveError;
         report(data?.message || "Ação executada.");
@@ -464,26 +423,19 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     setBusy(true); setError(""); setNotice("");
     try {
       if (approved) {
-        const result = request.payload?.roll;
-        const { error: rpcError } = await supabase.rpc("resolve_combat_action", {
+        const { data, error: rpcError } = await supabase.rpc("resolve_combat_action", {
           p_request_id: request.id,
-          p_resolution: {
-            damage: result?.totalDamage || 0,
-            pe_cost: Number(request.payload?.action?.peCost) || 0,
-            healing: result?.totalHealing || 0,
-            message: request.payload?.message || "Ação aprovada pelo mestre.",
-            outcome: result?.outcome || null,
-            condition: result && ["hit", "critical", "utility"].includes(result.outcome) ? request.payload?.action?.statusEffect || null : null,
-          },
+          p_resolution: {},
         });
         if (rpcError) throw rpcError;
+        var resolvedMessage = data?.message || "Ação aprovada e aplicada.";
       } else {
         const { error: updateError } = await supabase.from("combat_action_requests").update({
           status: "rejected", resolved_by: userId, resolved_at: new Date().toISOString(),
         }).eq("id", request.id).eq("status", "pending");
         if (updateError) throw updateError;
       }
-      await loadCombat(true); report(approved ? "Ação aprovada e aplicada." : "Ação recusada.");
+      await loadCombat(true); report(approved ? (resolvedMessage || "Ação aprovada e aplicada.") : "Ação recusada.");
     } catch (err) { fail(err, "Não foi possível resolver a solicitação."); }
     finally { setBusy(false); }
   };
@@ -578,7 +530,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
         </section>
         <aside className="room-combat-side">
           {isGm && <section className="panel room-combat-requests"><div className="room-battle-heading"><div><span className="eyebrow">AGUARDANDO MESTRE</span><h3>Solicitações ({pendingRequests.length})</h3></div><Activity size={17}/></div>
-            {pendingRequests.length ? pendingRequests.map((request)=><article key={request.id}><strong>{combatants.find((item)=>item.character_id===request.actor_character_id)?.character_name||"Personagem"} · {request.payload?.action?.name||request.action_type}</strong><small>{request.payload?.roll?.message||request.payload?.message||"Ação solicitada"}</small>{request.payload?.roll?.attackRoll&&<small>Teste: {request.payload.roll.attackRoll.total} · Defesa: {request.payload.roll.defense} · Dano: {request.payload.roll.totalDamage||0}</small>}<div><button className="button button-primary" type="button" disabled={busy} onClick={()=>resolveRequest(request,true)}>Aprovar e aplicar</button><button className="button button-secondary" type="button" disabled={busy} onClick={()=>resolveRequest(request,false)}>Recusar</button></div></article>) : <small>Nenhuma ação aguardando aprovação.</small>}
+            {pendingRequests.length ? pendingRequests.map((request)=><article key={request.id}><strong>{combatants.find((item)=>item.character_id===request.actor_character_id)?.character_name||"Personagem"} · {request.payload?.action?.name||request.action_type}</strong><small>{request.payload?.message||request.payload?.action?.description||"Ação solicitada"}</small><div><button className="button button-primary" type="button" disabled={busy} onClick={()=>resolveRequest(request,true)}>Aprovar e aplicar</button><button className="button button-secondary" type="button" disabled={busy} onClick={()=>resolveRequest(request,false)}>Recusar</button></div></article>) : <small>Nenhuma ação aguardando aprovação.</small>}
           </section>}
           {effects.length>0 && <section className="panel room-combat-effects"><div className="room-battle-heading"><div><span className="eyebrow">EFEITOS ATIVOS</span><h3>Durações e condições</h3></div><Timer size={17}/></div>{effects.map((effect)=><article key={effect.id}><div><strong>{effect.effect_name} · {effect.target_name}</strong><small>{effect.damage_per_round} de dano por turno · {effect.remaining_rounds} turno(s) restante(s)</small></div>{isGm && (editingEffectId === effect.id ? <div className="room-combat-actions-row"><label><span>Nome</span><input value={editingEffectName} onChange={(e)=>setEditingEffectName(e.target.value)}/></label><label><span>Dano por turno</span><input type="number" min="0" value={editingEffectDamage} onChange={(e)=>setEditingEffectDamage(e.target.value)}/></label><label><span>Turnos restantes</span><input type="number" min="0" max="100" value={editingEffectRounds} onChange={(e)=>setEditingEffectRounds(e.target.value)}/></label><button className="button button-primary" type="button" disabled={busy} onClick={()=>savePeriodicEffect(effect)}>Salvar</button><button className="button button-secondary" type="button" disabled={busy} onClick={()=>setEditingEffectId("")}>Cancelar</button></div> : <div className="room-combat-actions-row"><button className="button button-secondary" type="button" disabled={busy} onClick={()=>beginEditPeriodicEffect(effect)}>Editar</button><button className="button button-secondary" type="button" disabled={busy} onClick={()=>removePeriodicEffect(effect)}>Encerrar</button></div>)}</article>)}</section>}<section className="panel room-combat-log"><div className="room-battle-heading"><div><span className="eyebrow">REGISTRO DA SESSÃO</span><h3>Histórico do combate</h3></div><button className="icon-button" type="button" onClick={()=>loadCombat()} aria-label="Atualizar histórico"><RefreshCw size={15}/></button></div>{events.length?events.map((event)=><p key={event.id}><time>{new Date(event.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</time>{describeEvent(event)}</p>):<small>Nenhuma ação registrada ainda.</small>}</section>
         </aside>
