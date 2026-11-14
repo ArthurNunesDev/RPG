@@ -604,9 +604,9 @@ export default function SessionPage() {
     const { data, error: deleteError } = await supabase.rpc("delete_campaign_map", { p_map_id: item.id });
     if (deleteError) { setError(deleteError.message); return; }
     const { error: storageError } = await supabase.storage.from("campaign-assets").remove([data?.storage_path || item.storage_path]);
+    await loadSession(true);
     if (storageError) setError("O mapa foi removido, mas o arquivo não pôde ser excluído: " + storageError.message);
     else setNotice("Mapa removido.");
-    await loadSession(true);
   }
 
   async function handleSubmitCharacter(character) {
