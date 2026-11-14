@@ -136,3 +136,5 @@
 
 .room-combat-conditions{color:#d8b67c!important;overflow-wrap:anywhere}
 .room-combatant.blocked .room-combatant-order{border-color:rgba(191,102,102,.35);color:#cf8d8d}
+
+.room-map-token-controls{display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap}.room-map-token-controls .room-field{min-width:min(260px,100%);flex:1}.room-map-token-controls .room-field select{width:100%;min-height:36px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:7px;color:var(--text);background:#17161c;font-size:10px}.room-map-token{pointer-events:none}.room-map-token circle{fill:#27232a;stroke:#e5b96f;stroke-width:4;filter:drop-shadow(0 3px 6px rgba(0,0,0,.65))}.room-map-token text{fill:#fff1d6;font:700 20px sans-serif;pointer-events:none}.room-map-token .room-map-token-name{fill:#fff1d6;font:700 13px sans-serif;paint-order:stroke;stroke:#171820;stroke-width:4px;stroke-linejoin:round}.room-map-token.movable{pointer-events:all;cursor:grab}.room-map-token.movable:active{cursor:grabbing}.room-map-canvas.token-interactive svg{pointer-events:auto;user-select:none}
