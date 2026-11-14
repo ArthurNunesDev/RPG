@@ -196,9 +196,9 @@ export default function CampaignDetailPage() {
     if (table === "campaign_tracks" && selectedTrack === item.id) setSelectedTrack("");
     const storagePath = data?.storage_path || item.storage_path;
     const { error: storageError } = await supabase.storage.from("campaign-assets").remove([storagePath]);
+    await loadCampaign();
     if (storageError) setError(`${item.title} foi removido, mas o arquivo não pôde ser excluído: ${storageError.message}`);
     else setNotice(`${item.title} removido.`);
-    await loadCampaign();
   }
 
   async function playTrack(track) {
