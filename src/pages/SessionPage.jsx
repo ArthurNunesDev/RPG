@@ -107,6 +107,7 @@ export default function SessionPage() {
   const [mapState, setMapState] = useState(null);
   const [mapRequests, setMapRequests] = useState([]);
   const [mapAnnotations, setMapAnnotations] = useState([]);
+  const [mapTokens, setMapTokens] = useState([]);
   const [activeMapUrl, setActiveMapUrl] = useState("");
   const [characters, setCharacters] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -146,6 +147,7 @@ export default function SessionPage() {
   const activeMap = maps.find((item) => item.id === mapState?.active_map_id) || null;
   const activeMapRequest = mapRequests.find((request) => request.map_id === activeMap?.id && request.user_id === user?.id);
   const canViewActiveMap = Boolean(activeMap && mapState?.is_open && (isGm || activeMapRequest?.status === "approved"));
+  const canMoveOwnMapTokens = Boolean(!isGm && !isObserver && mapState?.allow_player_movement && activeMapRequest?.status === "approved");
 
   const loadSession = useCallback(async (silent = false) => {
     if (!supabase || !user?.id || !sessionId) {
@@ -164,12 +166,14 @@ export default function SessionPage() {
         { data: mapStateData, error: mapStateError },
         { data: mapRequestData, error: mapRequestError },
         { data: mapAnnotationData, error: mapAnnotationError },
+        { data: mapTokenData, error: mapTokenError },
       ] = await Promise.all([
         supabase.functions.invoke("realm-sessions", { body: { action: "info", sessionId } }),
         supabase.from("session_messages").select("id, session_id, author_id, content, created_at").eq("session_id", sessionId).order("created_at", { ascending: true }).limit(100),
         supabase.from("session_map_states").select("session_id, campaign_id, active_map_id, is_open, view_zoom, view_offset_x, view_offset_y, updated_at").eq("session_id", sessionId).maybeSingle(),
         supabase.from("session_map_access_requests").select("id, session_id, campaign_id, map_id, user_id, status, requested_at").eq("session_id", sessionId).order("requested_at", { ascending: false }),
         supabase.from("session_map_annotations").select("id, session_id, map_id, annotation_type, payload, created_at").eq("session_id", sessionId).order("created_at", { ascending: true }),
+        supabase.from("session_map_tokens").select("id, session_id, campaign_id, map_id, character_id, owner_id, x, y").eq("session_id", sessionId),
       ]);
       if (sessionError) throw sessionError;
       if (sessionData?.error) throw new Error(sessionData.error);
@@ -177,6 +181,7 @@ export default function SessionPage() {
       if (mapStateError) throw mapStateError;
       if (mapRequestError) throw mapRequestError;
       if (mapAnnotationError) throw mapAnnotationError;
+      if (mapTokenError) throw mapTokenError;
       const currentSession = sessionData?.session;
       if (!currentSession) throw new Error("Sessão não encontrada.");
       const currentCampaignId = currentSession.campaignId || currentSession.campaign_id || "";
@@ -186,6 +191,7 @@ export default function SessionPage() {
       setMapState(mapStateData ?? null);
       setMapRequests(mapRequestData ?? []);
       setMapAnnotations(mapAnnotationData ?? []);
+      setMapTokens(mapTokenData ?? []);
 
       if (currentCampaignId) {
         const [campaignResult, mapResult, characterResult, personalResult] = await Promise.all([
@@ -322,6 +328,7 @@ export default function SessionPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "session_map_access_requests", filter: "campaign_id=eq." + campaignId }, () => loadSession(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "session_map_states", filter: "session_id=eq." + sessionId }, () => loadSession(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "session_map_annotations", filter: "session_id=eq." + sessionId }, () => loadSession(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "session_map_tokens", filter: "session_id=eq." + sessionId }, () => loadSession(true))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [campaignId, sessionId, loadSession]);
@@ -557,6 +564,56 @@ export default function SessionPage() {
     const { error: annotationError } = await supabase.from("session_map_annotations").insert({ session_id: sessionId, campaign_id: campaignId, map_id: activeMap.id, created_by: user.id, annotation_type: annotationType, payload });
     if (annotationError) { setError(annotationError.message); throw annotationError; }
   }
+  async function handleTogglePlayerMovement(allowed) {
+    if (!supabase || !isGm || !mapState?.is_open) return;
+    const { error: permissionError } = await supabase.from("session_map_states")
+      .update({ allow_player_movement: allowed, updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("session_id", sessionId);
+    if (permissionError) setError("Não foi possível atualizar a permissão de movimento: " + permissionError.message);
+    else {
+      setMapState((current) => current ? { ...current, allow_player_movement: allowed } : current);
+      setNotice(allowed ? "Movimentação liberada para os jogadores." : "Movimentação dos jogadores bloqueada.");
+    }
+  }
+
+  async function handleAddMapToken(character) {
+    if (!supabase || !isGm || !activeMap || !mapState?.is_open || !character?.id) return;
+    if (mapTokens.some((token) => token.map_id === activeMap.id && token.character_id === character.id)) return;
+    const { error: insertError } = await supabase.from("session_map_tokens").insert({
+      session_id: sessionId,
+      campaign_id: campaignId,
+      map_id: activeMap.id,
+      character_id: character.id,
+      owner_id: character.owner_id,
+      created_by: user.id,
+      updated_by: user.id,
+      x: 0.5,
+      y: 0.5,
+    });
+    if (insertError) setError("Não foi possível adicionar o personagem ao mapa: " + insertError.message);
+    else {
+      setNotice(character.name + " foi adicionado ao mapa.");
+      await loadSession(true);
+    }
+  }
+
+  async function handleMoveMapToken(tokenId, position) {
+    if (!supabase || !activeMap || !mapState?.is_open) return;
+    const token = mapTokens.find((item) => item.id === tokenId && item.map_id === activeMap.id);
+    if (!token) return;
+    const canMove = isGm || (
+      !isObserver
+      && mapState.allow_player_movement
+      && activeMapRequest?.status === "approved"
+      && token.owner_id === user?.id
+    );
+    if (!canMove) return;
+    const { error: moveError } = await supabase.from("session_map_tokens")
+      .update({ x: position.x, y: position.y, updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("id", tokenId);
+    if (moveError) setError("Não foi possível mover o personagem: " + moveError.message);
+  }
+
   async function handleDeleteMap(item) {
     if (!supabase || !isGm) return;
     if (!window.confirm('Excluir o mapa "' + item.title + '" da campanha?')) return;
@@ -626,7 +683,11 @@ export default function SessionPage() {
   }
 
   function changeCharacter(field, value) {
-    setEditingCharacter((current) => current ? { ...current, [field]: value } : current);
+    setEditingCharacter((current) => {
+      if (!current) return current;
+      const nextValue = typeof value === "function" ? value(current[field]) : value;
+      return { ...current, [field]: nextValue };
+    });
   }
 
   async function handleSaveCharacter(event) {
@@ -770,7 +831,24 @@ export default function SessionPage() {
                 return <div className="room-map-request-row" key={request.id}><div><strong>{requester?.displayName || "Participante"}</strong><small>{requester?.role === "observer" ? "Observador" : "Jogador"} · {requestedMap?.title || "Mapa"}</small></div><div className="room-approval-actions"><button className="button button-primary" type="button" onClick={() => handleDecideMapAccess(request, "approved")}><Check size={14} /> Aceitar</button><button className="button button-secondary" type="button" onClick={() => handleDecideMapAccess(request, "rejected")}><XCircle size={14} /> Recusar</button></div></div>;
               })}
             </section>}
-            {canViewActiveMap && activeMap && (activeMapUrl ? <SessionMapViewer key={activeMap.id} url={activeMapUrl} title={activeMap.title} annotations={mapAnnotations.filter((item) => item.map_id === activeMap.id)} isGm={isGm} viewport={{ zoom: Number(mapState?.view_zoom) || 1, x: Number(mapState?.view_offset_x) || 0, y: Number(mapState?.view_offset_y) || 0 }} onViewportChange={handleMapViewportChange} onCreateAnnotation={handleCreateMapAnnotation} /> : <div className="panel room-empty">Carregando mapa autorizado...</div>)}
+            {canViewActiveMap && activeMap && (activeMapUrl ? <SessionMapViewer
+              key={activeMap.id}
+              url={activeMapUrl}
+              title={activeMap.title}
+              annotations={mapAnnotations.filter((item) => item.map_id === activeMap.id)}
+              tokens={mapTokens.filter((item) => item.map_id === activeMap.id)}
+              availableCharacters={isGm ? characters.filter((item) => item.campaign_id === campaignId && item.campaign_approval_status === "approved" && item.status === "active") : []}
+              isGm={isGm}
+              userId={user?.id}
+              canMoveOwnTokens={canMoveOwnMapTokens}
+              allowPlayerMovement={Boolean(mapState?.allow_player_movement)}
+              onTogglePlayerMovement={handleTogglePlayerMovement}
+              onAddToken={handleAddMapToken}
+              onMoveToken={handleMoveMapToken}
+              viewport={{ zoom: Number(mapState?.view_zoom) || 1, x: Number(mapState?.view_offset_x) || 0, y: Number(mapState?.view_offset_y) || 0 }}
+              onViewportChange={handleMapViewportChange}
+              onCreateAnnotation={handleCreateMapAnnotation}
+            /> : <div className="panel room-empty">Carregando mapa autorizado...</div>)}
             {visibleMaps.length ? <div className="room-map-grid">{visibleMaps.map((item) => {
               const request = mapRequests.find((entry) => entry.map_id === item.id && entry.user_id === user?.id);
               const isActiveMap = Boolean(mapState?.is_open && mapState.active_map_id === item.id);
