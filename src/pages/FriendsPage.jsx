@@ -48,7 +48,7 @@ export default function FriendsPage() {
     setLoading(true); setError("");
     try {
       const [profileResult, friendResult] = await Promise.all([
-        supabase.from("profiles").select("friend_code").eq("id", user.id).single(),
+        supabase.from("profile_private_data").select("friend_code").eq("user_id", user.id).single(),
         supabase.from("friendships").select("id, requester_id, addressee_id, status, created_at, requester:profiles!friendships_requester_id_fkey(id, username, avatar_url), addressee:profiles!friendships_addressee_id_fkey(id, username, avatar_url)").order("created_at", { ascending: false }),
       ]);
       if (profileResult.error) throw profileResult.error;
@@ -87,13 +87,13 @@ export default function FriendsPage() {
     if (!/^[A-Z0-9]{8}$/.test(code)) { setError("Digite um ID de amigo válido com 8 caracteres."); return; }
     setSubmitting(true); setError(""); setNotice("");
     try {
-      const { data: target, error: lookupError } = await supabase.from("profiles").select("id").eq("friend_code", code).maybeSingle();
+      const { data: target, error: lookupError } = await supabase.rpc("find_profile_id_by_friend_code", { p_friend_code: code });
       if (lookupError) throw lookupError;
       if (!target) throw new Error("Nenhuma conta foi encontrada com esse ID.");
-      if (target.id === user.id) throw new Error("Você não pode adicionar a si mesmo.");
-      const already = friendships.find((item) => [item.requester_id,item.addressee_id].includes(target.id));
+      if (target === user.id) throw new Error("Você não pode adicionar a si mesmo.");
+      const already = friendships.find((item) => [item.requester_id,item.addressee_id].includes(target));
       if (already) throw new Error("Já existe uma solicitação ou amizade com essa conta.");
-      const { error: insertError } = await supabase.from("friendships").insert({ requester_id: user.id, addressee_id: target.id });
+      const { error: insertError } = await supabase.from("friendships").insert({ requester_id: user.id, addressee_id: target });
       if (insertError) throw insertError;
       setFriendCode(""); setNotice("Solicitação enviada."); await load();
     } catch (sendError) { setError(sendError instanceof Error ? sendError.message : "Não foi possível enviar a solicitação."); }
