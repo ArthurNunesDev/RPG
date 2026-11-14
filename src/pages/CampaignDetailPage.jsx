@@ -168,15 +168,36 @@ export default function CampaignDetailPage() {
   }
 
   async function toggleVisibility(table,item) {
-    const { error: updateError } = await supabase.from(table).update({is_visible:!item.is_visible}).eq("id",item.id);
-    if (updateError) setError(updateError.message); else await loadCampaign();
+    if (!isGm || !supabase) return;
+    setError(""); setNotice("");
+    if (table === "campaign_maps") {
+      const { error: visibilityError } = await supabase.rpc("set_campaign_map_visibility", {
+        p_campaign_id: campaignId,
+        p_map_id: item.id,
+        p_is_visible: !item.is_visible,
+      });
+      if (visibilityError) { setError(visibilityError.message); return; }
+    } else {
+      const { error: updateError } = await supabase.from("campaign_tracks")
+        .update({ is_visible: !item.is_visible }).eq("id",item.id).eq("campaign_id",campaignId);
+      if (updateError) { setError(updateError.message); return; }
+    }
+    await loadCampaign();
   }
 
   async function removeAsset(table,item) {
-    if (!window.confirm(`Excluir "${item.title}" desta campanha?`)) return;
-    const { error: deleteError } = await supabase.from(table).delete().eq("id",item.id);
+    if (!isGm || !supabase || !window.confirm(`Excluir "${item.title}" desta campanha?`)) return;
+    setError(""); setNotice("");
+    const rpcName = table === "campaign_maps" ? "delete_campaign_map" : "delete_campaign_track";
+    const rpcArgs = table === "campaign_maps" ? { p_map_id: item.id } : { p_track_id: item.id };
+    const { data, error: deleteError } = await supabase.rpc(rpcName, rpcArgs);
     if (deleteError) { setError(deleteError.message); return; }
-    await supabase.storage.from("campaign-assets").remove([item.storage_path]);
+
+    if (table === "campaign_tracks" && selectedTrack === item.id) setSelectedTrack("");
+    const storagePath = data?.storage_path || item.storage_path;
+    const { error: storageError } = await supabase.storage.from("campaign-assets").remove([storagePath]);
+    if (storageError) setError(`${item.title} foi removido, mas o arquivo não pôde ser excluído: ${storageError.message}`);
+    else setNotice(`${item.title} removido.`);
     await loadCampaign();
   }
 
