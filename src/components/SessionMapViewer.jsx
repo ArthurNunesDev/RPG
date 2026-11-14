@@ -116,7 +116,7 @@ export default function SessionMapViewer({ url, title, annotations, tokens = [],
   async function handlePointerUp(event) {
     if (tokenDragRef.current) {
       const tokenId = tokenDragRef.current.id;
-      const point = dragPreview || getPoint(event);
+      const point = getPoint(event) || dragPreview;
       tokenDragRef.current = null;
       setDragPreview(null);
       if (point) await onMoveToken?.(tokenId, { x: point.x, y: point.y });
