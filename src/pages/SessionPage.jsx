@@ -488,30 +488,14 @@ export default function SessionPage() {
 
   async function handleMapVisibility(item) {
     if (!supabase || !isGm || !campaignId) return;
-    setError("");
-    if (item.is_visible) {
-      if (mapState?.active_map_id === item.id && mapState.is_open) {
-        const { error: closeError } = await supabase.from("session_map_states")
-          .update({ active_map_id: null, is_open: false, updated_by: user.id, updated_at: new Date().toISOString() })
-          .eq("session_id", sessionId);
-        if (closeError) { setError(closeError.message); return; }
-      }
-      const { error: hideError } = await supabase.from("campaign_maps")
-        .update({ is_visible: false }).eq("id", item.id).eq("campaign_id", campaignId);
-      if (hideError) setError(hideError.message);
-      else await loadSession(true);
-      return;
-    }
-
-    const { error: hideOthersError } = await supabase.from("campaign_maps")
-      .update({ is_visible: false }).eq("campaign_id", campaignId);
-    if (hideOthersError) {
-      setError(hideOthersError.message);
-      return;
-    }
-    const { error: showError } = await supabase.from("campaign_maps")
-      .update({ is_visible: true }).eq("id", item.id).eq("campaign_id", campaignId);
-    if (showError) setError(showError.message);
+    setError(""); setNotice("");
+    const { error: visibilityError } = await supabase.rpc("set_campaign_map_visibility", {
+      p_campaign_id: campaignId,
+      p_map_id: item.id,
+      p_is_visible: !item.is_visible,
+    });
+    if (visibilityError) { setError(visibilityError.message); return; }
+    setNotice(item.is_visible ? "Mapa ocultado e fechado na sessão." : "Mapa disponibilizado. Abra-o quando quiser iniciar a exploração.");
     await loadSession(true);
   }
 
@@ -617,13 +601,9 @@ export default function SessionPage() {
   async function handleDeleteMap(item) {
     if (!supabase || !isGm) return;
     if (!window.confirm('Excluir o mapa "' + item.title + '" da campanha?')) return;
-    const { error: deleteError } = await supabase.from("campaign_maps")
-      .delete().eq("id", item.id).eq("campaign_id", campaignId);
-    if (deleteError) {
-      setError(deleteError.message);
-      return;
-    }
-    const { error: storageError } = await supabase.storage.from("campaign-assets").remove([item.storage_path]);
+    const { data, error: deleteError } = await supabase.rpc("delete_campaign_map", { p_map_id: item.id });
+    if (deleteError) { setError(deleteError.message); return; }
+    const { error: storageError } = await supabase.storage.from("campaign-assets").remove([data?.storage_path || item.storage_path]);
     if (storageError) setError("O mapa foi removido, mas o arquivo não pôde ser excluído: " + storageError.message);
     else setNotice("Mapa removido.");
     await loadSession(true);
