@@ -100,7 +100,7 @@ Deno.serve(async (request: Request) => {
   }
 
   const action = typeof payload.action === "string" ? payload.action : "";
-  if (!["join", "create", "campaign", "info", "active", "leave"].includes(action)) {
+  if (!["join", "create", "delete-campaign", "campaign", "info", "active", "leave"].includes(action)) {
     return respond({ error: "Ação de sessão inválida." }, 400);
   }
 
@@ -183,6 +183,60 @@ Deno.serve(async (request: Request) => {
     });
     if (infoError) return respond({ error: "A sessão foi criada, mas não foi possível carregar seus dados." }, 500);
     return respond({ created: true, session });
+  }
+
+  if (action === "delete-campaign") {
+    const campaignId = typeof payload.campaignId === "string" ? payload.campaignId : "";
+    if (!/^[0-9a-f-]{36}$/i.test(campaignId)) return respond({ error: "Campanha inválida." }, 400);
+
+    const { data: campaign, error: campaignError } = await admin
+      .from("campaigns")
+      .select("id,owner_id")
+      .eq("id", campaignId)
+      .maybeSingle();
+    if (campaignError) return respond({ error: "Não foi possível validar a campanha." }, 500);
+    if (!campaign || campaign.owner_id !== userId) return respond({ error: "Somente o mestre proprietário pode excluir esta campanha." }, 403);
+
+    const assetPaths: string[] = [];
+    for (const folder of ["maps", "audio"]) {
+      let offset = 0;
+      while (true) {
+        const { data: objects, error: listError } = await admin.storage
+          .from("campaign-assets")
+          .list(`${campaignId}/${folder}`, { limit: 1000, offset });
+        if (listError) return respond({ error: "Não foi possível preparar a limpeza dos arquivos da campanha." }, 500);
+
+        for (const object of objects ?? []) {
+          if (object.id && object.name) assetPaths.push(`${campaignId}/${folder}/${object.name}`);
+        }
+        if (!objects || objects.length < 1000) break;
+        offset += 1000;
+      }
+    }
+
+    const { data: deletedCampaign, error: deleteError } = await admin
+      .from("campaigns")
+      .delete()
+      .eq("id", campaignId)
+      .eq("owner_id", userId)
+      .select("id");
+    if (deleteError) return respond({ error: "Não foi possível excluir a campanha." }, 500);
+    if (!deletedCampaign?.length) return respond({ error: "A campanha não foi encontrada ou não pertence a você." }, 404);
+
+    const cleanupErrors: string[] = [];
+    for (let index = 0; index < assetPaths.length; index += 100) {
+      const { error: removeError } = await admin.storage
+        .from("campaign-assets")
+        .remove(assetPaths.slice(index, index + 100));
+      if (removeError) cleanupErrors.push(removeError.message);
+    }
+
+    return respond({
+      deleted: true,
+      removedFiles: assetPaths.length - (cleanupErrors.length ? 1 : 0),
+      storageCleanupPending: cleanupErrors.length > 0,
+      warning: cleanupErrors.length ? "A campanha foi excluída, mas alguns arquivos ainda precisam de limpeza." : null,
+    });
   }
 
   if (action === "campaign" || action === "active") {
