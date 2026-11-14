@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { Crosshair, Hand, MapPin, Pencil, Type, ZoomIn, ZoomOut } from "lucide-react";
+import { Crosshair, Hand, MapPin, Pencil, Type, ZoomIn, ZoomOut, UserPlus, Users } from "lucide-react";
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-export default function SessionMapViewer({ url, title, annotations, isGm, viewport, onViewportChange, onCreateAnnotation }) {
+export default function SessionMapViewer({ url, title, annotations, tokens = [], availableCharacters = [], isGm, userId, canMoveOwnTokens = false, allowPlayerMovement = false, onTogglePlayerMovement, onAddToken, onMoveToken, viewport, onViewportChange, onCreateAnnotation }) {
   const svgRef = useRef(null);
   const drawingRef = useRef([]);
   const dragRef = useRef(null);
+  const tokenDragRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 1000, height: 700 });
   const [tool, setTool] = useState("move");
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [draftPath, setDraftPath] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [dragPreview, setDragPreview] = useState(null);
+  const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const lastViewportSyncRef = useRef(0);
 
   useEffect(() => {
@@ -55,7 +58,17 @@ export default function SessionMapViewer({ url, title, annotations, isGm, viewpo
   }
 
   function handlePointerDown(event) {
-    if (!isGm || saving) return;
+    if (saving) return;
+    const tokenElement = event.target.closest?.("[data-token-id]");
+    if (tokenElement) {
+      const token = tokens.find((item) => item.id === tokenElement.dataset.tokenId);
+      const canMoveToken = Boolean(token && (isGm || (canMoveOwnTokens && token.owner_id === userId)));
+      if (!canMoveToken) return;
+      tokenDragRef.current = { id: token.id };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (!isGm) return;
     const point = getPoint(event);
     if (!point) return;
     if (tool === "move") {
@@ -71,6 +84,11 @@ export default function SessionMapViewer({ url, title, annotations, isGm, viewpo
   }
 
   function handlePointerMove(event) {
+    if (tokenDragRef.current) {
+      const point = getPoint(event);
+      if (point) setDragPreview({ id: tokenDragRef.current.id, ...point });
+      return;
+    }
     if (!isGm) return;
     if (tool === "move" && dragRef.current) {
       const deltaX = event.clientX - dragRef.current.x;
@@ -96,6 +114,14 @@ export default function SessionMapViewer({ url, title, annotations, isGm, viewpo
   }
 
   async function handlePointerUp(event) {
+    if (tokenDragRef.current) {
+      const tokenId = tokenDragRef.current.id;
+      const point = dragPreview || getPoint(event);
+      tokenDragRef.current = null;
+      setDragPreview(null);
+      if (point) await onMoveToken?.(tokenId, { x: point.x, y: point.y });
+      return;
+    }
     if (!isGm) return;
     if (dragRef.current) onViewportChange?.({ zoom, x: offset.x, y: offset.y });
     dragRef.current = null;
@@ -139,9 +165,24 @@ export default function SessionMapViewer({ url, title, annotations, isGm, viewpo
           <span className="room-map-zoom-value">{Math.round(zoom * 100)}%</span>
           <button type="button" onClick={() => { const next = clamp(zoom + 0.15, 0.5, 3); setZoom(next); onViewportChange?.({ zoom: next, x: offset.x, y: offset.y }); }} disabled={zoom >= 3} aria-label="Aumentar zoom"><ZoomIn size={15} /></button>
           <button type="button" onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); onViewportChange?.({ zoom: 1, x: 0, y: 0 }); }} title="Centralizar"><Crosshair size={15} /></button>
-        </div> : <span className="room-readonly-note"><Crosshair size={14} /> Somente visualização</span>}
+        </div> : <span className="room-readonly-note"><Crosshair size={14} /> {canMoveOwnTokens ? "Arraste seu personagem para movê-lo" : "Somente visualização"}</span>}
       </div>
-      <div className={"room-map-canvas" + (isGm ? " editable" : " readonly")} style={{ aspectRatio: dimensions.width + " / " + dimensions.height }}>
+      {isGm && <div className="room-map-token-controls">
+        <label className="room-field">
+          <span>Adicionar personagem ao mapa</span>
+          <select value={selectedCharacterId} onChange={(event) => setSelectedCharacterId(event.target.value)}>
+            <option value="">Selecione um personagem...</option>
+            {availableCharacters.filter((character) => !tokens.some((token) => token.character_id === character.id)).map((character) => <option key={character.id} value={character.id}>{character.name}</option>)}
+          </select>
+        </label>
+        <button className="button button-secondary" type="button" disabled={!selectedCharacterId} onClick={() => {
+          const character = availableCharacters.find((item) => item.id === selectedCharacterId);
+          if (character) onAddToken?.(character);
+          setSelectedCharacterId("");
+        }}><UserPlus size={14} /> Adicionar</button>
+        <button className="button button-secondary" type="button" onClick={() => onTogglePlayerMovement?.(!allowPlayerMovement)}><Users size={14} /> {allowPlayerMovement ? "Bloquear movimento dos jogadores" : "Permitir movimento dos jogadores"}</button>
+      </div>}
+      <div className={"room-map-canvas" + (isGm ? " editable" : canMoveOwnTokens ? " token-interactive" : " readonly")} style={{ aspectRatio: dimensions.width + " / " + dimensions.height }}>
         <svg
           ref={svgRef}
           viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
@@ -165,10 +206,22 @@ export default function SessionMapViewer({ url, title, annotations, isGm, viewpo
             if (item.annotation_type === "drawing" && Array.isArray(payload.points)) return <polyline key={item.id} points={payload.points.map((point) => `${point.x * dimensions.width},${point.y * dimensions.height}`).join(" ")} fill="none" stroke={payload.color || "#e5b96f"} strokeWidth={payload.width || 4} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />;
             return null;
           })}
+          {tokens.map((token) => {
+            const point = dragPreview?.id === token.id ? dragPreview : token;
+            const x = Number(point.x) * dimensions.width;
+            const y = Number(point.y) * dimensions.height;
+            const label = token.character_name || "Personagem";
+            const movable = isGm || (canMoveOwnTokens && token.owner_id === userId);
+            return <g key={token.id} data-token-id={token.id} transform={`translate(${x} ${y})`} className={movable ? "room-map-token movable" : "room-map-token"}>
+              <circle r={Math.max(20, dimensions.width * 0.022)} />
+              <text textAnchor="middle" dominantBaseline="central">{label.trim().charAt(0).toUpperCase()}</text>
+              <text className="room-map-token-name" textAnchor="middle" y={Math.max(34, dimensions.width * 0.035)}>{label}</text>
+            </g>;
+          })}
           {draftPath.length > 1 && <polyline points={draftPath.map((point) => `${point.x * dimensions.width},${point.y * dimensions.height}`).join(" ")} fill="none" stroke="#e5b96f" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
         </svg>
       </div>
-      <div className="room-map-workspace-footer">{isGm ? "Use as ferramentas para posicionar marcadores, inserir textos e desenhar. Alterações são compartilhadas em tempo real." : "O mapa acompanha em tempo real as alterações realizadas pelo mestre. Seus controles de navegação e edição estão desativados."}{saving && <span> Salvando anotação…</span>}</div>
+      <div className="room-map-workspace-footer">{isGm ? "Arraste os personagens para posicioná-los. Você mantém o controle de todos os tokens; a movimentação dos jogadores pode ser liberada ou bloqueada." : canMoveOwnTokens ? "Você pode arrastar somente o seu personagem. O mestre continua podendo mover todos os personagens." : "O mapa acompanha em tempo real as alterações realizadas pelo mestre."}{saving && <span> Salvando anotação…</span>}</div>
     </section>
   );
 }
