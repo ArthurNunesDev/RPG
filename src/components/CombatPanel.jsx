@@ -178,41 +178,38 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     if (!isGm || !isOrderSystem || busy || !approvedCharacters.length) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const { data: created, error: createError } = await supabase.from("combat_encounters").insert({
-        session_id: sessionId, campaign_id: campaignId, game_system: "ordem-paranormal", started_by: userId,
-      }).select("*").single();
-      if (createError) throw createError;
       const ordered = approvedCharacters.map((character, index) => {
         const initiative = getOrderInitiative(character);
         const vitals = getOrderVitals(character);
         return {
-          encounter_id: created.id, character_id: character.id, character_name: character.name,
-          owner_id: character.owner_id, side: getSide(character), initiative: initiative.total,
-          initiative_rolls: initiative.rolls, current_hp: vitals.hp, max_hp: vitals.hpMax,
-          current_pe: vitals.pe, max_pe: vitals.peMax, current_pd: vitals.pd, max_pd: vitals.pdMax,
+          character_id: character.id,
+          character_name: character.name,
+          owner_id: character.owner_id,
+          side: getSide(character),
+          initiative: initiative.total,
+          initiative_rolls: initiative.rolls,
+          current_hp: vitals.hp,
+          max_hp: vitals.hpMax,
+          current_pe: vitals.pe,
+          max_pe: vitals.peMax,
+          current_pd: vitals.pd,
+          max_pd: vitals.pdMax,
           defense: Number(character.sheet?.vitals?.defense) || 10,
           sheet_snapshot: character.sheet && typeof character.sheet === "object" ? character.sheet : {},
-          turn_order: index + 1, sort_order: index, turn_control: getSide(character) === "players" ? "player" : "gm",
+          turn_order: index + 1,
+          sort_order: index,
+          turn_control: getSide(character) === "players" ? "player" : "gm",
         };
       }).sort((a, b) => b.initiative - a.initiative || a.sort_order - b.sort_order)
         .map((item, index) => ({ ...item, turn_order: index + 1, sort_order: index }));
-      const combatantRows = ordered.map(({ sheet_snapshot, ...item }) => item);
-      const { data: insertedCombatants, error: insertError } = await supabase.from("combatants").insert(combatantRows).select("id,character_id,owner_id");
-      if (insertError) throw insertError;
-      const sheetRows = insertedCombatants.map((item) => ({
-        combatant_id: item.id, character_id: item.character_id, owner_id: item.owner_id,
-        sheet_snapshot: ordered.find((combatant) => combatant.character_id === item.character_id)?.sheet_snapshot ?? {},
-      }));
-      const { error: sheetError } = await supabase.from("combatant_sheets").insert(sheetRows);
-      if (sheetError) {
-        await supabase.from("combat_encounters").delete().eq("id", created.id);
-        throw sheetError;
-      }
-      const { error: eventError } = await supabase.from("combat_events").insert(ordered.map((item) => ({
-        encounter_id: created.id, actor_character_id: item.character_id, actor_name: item.character_name,
-        event_type: "initiative", result: { total: item.initiative, rolls: item.initiative_rolls }, created_by: userId,
-      })));
-      if (eventError) throw eventError;
+
+      const { error: createError } = await supabase.rpc("start_combat_encounter", {
+        p_session_id: sessionId,
+        p_campaign_id: campaignId,
+        p_game_system: "ordem-paranormal",
+        p_combatants: ordered,
+      });
+      if (createError) throw createError;
       await loadCombat();
       report("Combate iniciado. O mestre pode ajustar a ordem e o controle de cada turno.");
     } catch (err) { fail(err, "Não foi possível iniciar o combate."); }
@@ -227,31 +224,32 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     try {
       const initiative = getOrderInitiative(character);
       const vitals = getOrderVitals(character);
-      const { data: created, error: insertError } = await supabase.from("combatants").insert({
-        encounter_id: encounter.id, character_id: character.id, character_name: character.name,
-        owner_id: character.owner_id, side: getSide(character), initiative: initiative.total,
-        initiative_rolls: initiative.rolls, current_hp: vitals.hp, max_hp: vitals.hpMax,
-        current_pe: vitals.pe, max_pe: vitals.peMax, current_pd: vitals.pd, max_pd: vitals.pdMax,
-        defense: Number(character.sheet?.vitals?.defense) || 10,
-        turn_order: sortedCombatants.length ? Math.max(...sortedCombatants.map((item) => item.turn_order)) + 1 : 1,
-        sort_order: sortedCombatants.length,
-        turn_control: getSide(character) === "players" ? "player" : "gm",
-      }).select("id,character_id,owner_id").single();
+      const { data, error: insertError } = await supabase.rpc("add_combatant_to_encounter", {
+        p_encounter_id: encounter.id,
+        p_combatant: {
+          character_id: character.id,
+          character_name: character.name,
+          owner_id: character.owner_id,
+          side: getSide(character),
+          initiative: initiative.total,
+          initiative_rolls: initiative.rolls,
+          current_hp: vitals.hp,
+          max_hp: vitals.hpMax,
+          current_pe: vitals.pe,
+          max_pe: vitals.peMax,
+          current_pd: vitals.pd,
+          max_pd: vitals.pdMax,
+          defense: Number(character.sheet?.vitals?.defense) || 10,
+          turn_order: sortedCombatants.length ? Math.max(...sortedCombatants.map((item) => item.turn_order)) + 1 : 1,
+          sort_order: sortedCombatants.length,
+          turn_control: getSide(character) === "players" ? "player" : "gm",
+          sheet_snapshot: character.sheet && typeof character.sheet === "object" ? character.sheet : {},
+        },
+      });
       if (insertError) throw insertError;
-      const { error: sheetError } = await supabase.from("combatant_sheets").insert({
-        combatant_id: created.id, character_id: character.id, owner_id: character.owner_id,
-        sheet_snapshot: character.sheet && typeof character.sheet === "object" ? character.sheet : {},
-      });
-      if (sheetError) {
-        await supabase.from("combatants").delete().eq("id", created.id);
-        throw sheetError;
-      }
-      const { error: eventError } = await supabase.from("combat_events").insert({
-        encounter_id: encounter.id, actor_character_id: character.id, actor_name: character.name,
-        event_type: "initiative", result: { total: initiative.total, rolls: initiative.rolls, message: `${character.name} entrou no combate.` }, created_by: userId,
-      });
-      if (eventError) throw eventError;
-      setSelectedNewCombatant(""); await loadCombat(true); report(`${character.name} adicionado ao combate.`);
+      setSelectedNewCombatant("");
+      await loadCombat(true);
+      report(data?.message || `${character.name} adicionado ao combate.`);
     } catch (err) { fail(err, "Não foi possível adicionar o combatente."); }
     finally { setBusy(false); }
   };
@@ -277,7 +275,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   };
 
   const setTurn = async (index, message = "Turno definido pelo mestre.") => {
-    if (!isGm || !encounter || busy || index < 0 || index >= eligibleCombatants.length) return;
+    if (!isGm || !encounter || busy || index < 0 || index >= eligibleCombatants.length || eligibleCombatants[index]?.id === currentCombatant?.id) return;
     setBusy(true);
     try {
       const next = eligibleCombatants[index];
