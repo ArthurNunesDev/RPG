@@ -96,7 +96,7 @@ export default function CharactersPage() {
           .order("updated_at", { ascending: false }),
         supabase
           .from("campaigns")
-          .select("id, title, game_system_id, campaign_members(user_id, role)")
+          .select("id, title, owner_id, game_system_id, campaign_members(user_id, role)")
           .order("updated_at", { ascending: false }),
         supabase
           .from("game_systems")
