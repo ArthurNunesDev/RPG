@@ -32,6 +32,36 @@ const emptyForm = {
 const npcRoleLabels = { ally: "Aliado", enemy: "Inimigo", neutral: "Neutro" };
 const statusLabels = { active: "Ativo", retired: "Aposentado", deceased: "Morto" };
 
+function getCharacterSaveError(error) {
+  const code = error?.code;
+  const message = typeof error?.message === "string" ? error.message : "";
+  const details = typeof error?.details === "string" ? error.details : "";
+  const constraint = details || message;
+
+  if (code === "23502") {
+    const column = constraint.match(/column "([^"]+)"/i)?.[1];
+    const labels = { name: "Nome", game_system_id: "Sistema de RPG", owner_id: "Proprietário", sheet: "Ficha" };
+    return `Campo obrigatório não preenchido: ${labels[column] ?? column ?? "um campo obrigatório"}.`;
+  }
+  if (code === "23503") {
+    if (constraint.includes("game_system_id")) return "O sistema de RPG selecionado não existe mais. Selecione outro sistema.";
+    if (constraint.includes("campaign_id")) return "A campanha selecionada não existe mais. Atualize a página e tente novamente.";
+    return "Uma referência vinculada ao personagem não existe mais. Atualize a página e revise os campos.";
+  }
+  if (code === "23514") {
+    if (constraint.includes("characters_name_check")) return "O nome precisa ter entre 1 e 80 caracteres.";
+    if (constraint.includes("characters_npc_role_check")) return "Para criar um NPC, selecione uma campanha administrada por você e informe a função do NPC.";
+    if (constraint.includes("characters_sheet_check")) return "A ficha está em formato inválido. Revise os dados e tente novamente.";
+    if (constraint.includes("characters_status_check")) return "O status selecionado é inválido.";
+    return `Um campo contém um valor inválido. ${message}`.trim();
+  }
+  if (code === "42501" || /row-level security|permission denied/i.test(message)) {
+    return "Você não tem permissão para salvar este personagem nessa campanha. Verifique seu papel na campanha.";
+  }
+  if (message) return details ? `${message} — ${details}` : message;
+  return "Não foi possível salvar o personagem por um erro inesperado.";
+}
+
 export default function CharactersPage() {
   const { user } = useAuth();
   const [characters, setCharacters] = useState([]);
@@ -230,7 +260,7 @@ export default function CharactersPage() {
       setNotice(editingId ? "Personagem atualizado." : isNpc ? "NPC adicionado à campanha." : "Personagem criado.");
       await loadData();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar o personagem.");
+      setError(getCharacterSaveError(saveError));
     } finally {
       setSaving(false);
     }
