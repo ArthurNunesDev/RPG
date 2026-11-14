@@ -224,16 +224,19 @@ Deno.serve(async (request: Request) => {
     if (!deletedCampaign?.length) return respond({ error: "A campanha não foi encontrada ou não pertence a você." }, 404);
 
     const cleanupErrors: string[] = [];
+    let removedFiles = 0;
     for (let index = 0; index < assetPaths.length; index += 100) {
+      const batch = assetPaths.slice(index, index + 100);
       const { error: removeError } = await admin.storage
         .from("campaign-assets")
-        .remove(assetPaths.slice(index, index + 100));
+        .remove(batch);
       if (removeError) cleanupErrors.push(removeError.message);
+      else removedFiles += batch.length;
     }
 
     return respond({
       deleted: true,
-      removedFiles: assetPaths.length - (cleanupErrors.length ? 1 : 0),
+      removedFiles,
       storageCleanupPending: cleanupErrors.length > 0,
       warning: cleanupErrors.length ? "A campanha foi excluída, mas alguns arquivos ainda precisam de limpeza." : null,
     });
