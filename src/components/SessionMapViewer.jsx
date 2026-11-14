@@ -210,7 +210,7 @@ export default function SessionMapViewer({ url, title, annotations, tokens = [],
             const point = dragPreview?.id === token.id ? dragPreview : token;
             const x = Number(point.x) * dimensions.width;
             const y = Number(point.y) * dimensions.height;
-            const label = token.character_name || "Personagem";
+            const label = token.characters?.name || token.character_name || "Personagem";
             const movable = isGm || (canMoveOwnTokens && token.owner_id === userId);
             return <g key={token.id} data-token-id={token.id} transform={`translate(${x} ${y})`} className={movable ? "room-map-token movable" : "room-map-token"}>
               <circle r={Math.max(20, dimensions.width * 0.022)} />
