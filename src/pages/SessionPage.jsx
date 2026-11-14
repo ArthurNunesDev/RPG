@@ -170,10 +170,10 @@ export default function SessionPage() {
       ] = await Promise.all([
         supabase.functions.invoke("realm-sessions", { body: { action: "info", sessionId } }),
         supabase.from("session_messages").select("id, session_id, author_id, content, created_at").eq("session_id", sessionId).order("created_at", { ascending: true }).limit(100),
-        supabase.from("session_map_states").select("session_id, campaign_id, active_map_id, is_open, view_zoom, view_offset_x, view_offset_y, updated_at").eq("session_id", sessionId).maybeSingle(),
+        supabase.from("session_map_states").select("session_id, campaign_id, active_map_id, is_open, allow_player_movement, view_zoom, view_offset_x, view_offset_y, updated_at").eq("session_id", sessionId).maybeSingle(),
         supabase.from("session_map_access_requests").select("id, session_id, campaign_id, map_id, user_id, status, requested_at").eq("session_id", sessionId).order("requested_at", { ascending: false }),
         supabase.from("session_map_annotations").select("id, session_id, map_id, annotation_type, payload, created_at").eq("session_id", sessionId).order("created_at", { ascending: true }),
-        supabase.from("session_map_tokens").select("id, session_id, campaign_id, map_id, character_id, owner_id, x, y").eq("session_id", sessionId),
+        supabase.from("session_map_tokens").select("id, session_id, campaign_id, map_id, character_id, owner_id, x, y, characters(name)").eq("session_id", sessionId),
       ]);
       if (sessionError) throw sessionError;
       if (sessionData?.error) throw new Error(sessionData.error);
