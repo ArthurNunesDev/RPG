@@ -25,7 +25,7 @@ export default function AppLayout() {
       { to: "/campaigns", label: "Campanhas", icon: Swords },
       ...(role !== "observer" ? [{ to: "/characters", label: "Personagens", icon: UserRound }] : []),
     ] },
-    { label: "Comunidade", items: [{ to: "/friends", label: "Amigos", icon: Users }] },
+    ...(role !== "observer" ? [{ label: "Comunidade", items: [{ to: "/friends", label: "Amigos", icon: Users }] }] : []),
     ...(role !== "observer" ? [{ label: "Explorar", items: [{ to: "/library", label: "Biblioteca", icon: Library }] }] : []),
   ];
 
