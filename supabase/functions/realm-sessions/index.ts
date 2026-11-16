@@ -253,7 +253,7 @@ Deno.serve(async (request: Request) => {
     if (error) {
       const message = errorMessage(error);
       if (message.includes("CAMPAIGN_GM_REQUIRED") || message.includes("CAMPAIGN_MEMBER_REQUIRED")) return respond({ error: "Você não participa desta campanha." }, 403);
-      if (message.includes("CAMPAIGN_SESSION_NOT_CREATED")) return respond({ error: "Esta campanha ainda não possui uma sessão. O mestre precisa criá-la." }, 404);
+      if (message.includes("CAMPAIGN_SESSION_NOT_CREATED")) return respond({ session: null, sessionCreated: false });
       return respond({ error: "Não foi possível carregar a sessão desta campanha." }, 500);
     }
     return respond({ session: data });
