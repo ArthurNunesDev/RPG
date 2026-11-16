@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDown, ArrowUp, Check, CheckCircle2, ChevronRight, CirclePause, CirclePlay, Flag, Lock, LockOpen, RefreshCw, Shield, SkipForward, Swords, Timer, UserCog, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { getOrderInitiative, getOrderVitals, rollDice } from "../lib/combat.js";
+import "../styles/combat.css";
 
 function getSide(character) {
   if (character.character_type === "player") return "players";
