@@ -508,7 +508,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     <div className="panel room-combat-admin room-combat-preparation-picker">
       <div className="room-battle-heading">
         <div><span className="eyebrow">ELENCO DO CONFRONTO</span><h3>Adicionar personagens</h3><p>Escolha quem participará da iniciativa. Personagens do mestre e dos jogadores ficam separados.</p></div>
-        <button className="button button-secondary" type="button" disabled={busy || !availableToAdd.length} onClick={() => setShowCharacterPicker((value) => !value)}>
+        <button className="button button-secondary" type="button" disabled={busy} onClick={() => setShowCharacterPicker((value) => !value)}>
           {showCharacterPicker ? "Fechar lista" : "Adicionar personagens"} ({availableToAdd.length})
         </button>
       </div>
@@ -517,7 +517,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
           <header><strong>Do mestre</strong><small>Personagens e NPCs criados pelo mestre</small></header>
           {masterAvailableCharacters.length ? masterAvailableCharacters.map((item) => <article className="room-combat-character-option" key={item.id}>
             <div><strong>{item.name}</strong><small>{item.character_type === "npc" ? "NPC do mestre" : "Personagem do mestre"}{item.npc_role ? " · " + ({enemy:"Inimigo",ally:"Aliado",neutral:"Neutro"}[item.npc_role] || "NPC") : ""}{!item.campaign_id ? " · Pessoal" : " · Campanha"}</small></div>
-            <button className="button button-secondary" type="button" disabled={busy} onClick={() => setSelectedBeforeCombat((current) => new Set(current).add(item.id))}>{selectedBeforeCombat.has(item.id) ? "Incluído" : "Incluir"}</button>
+            <button className="button button-secondary" type="button" disabled={busy} onClick={() => encounter ? addCombatant(item.id) : setSelectedBeforeCombat((current) => new Set(current).add(item.id))}>{encounter ? "Adicionar" : selectedBeforeCombat.has(item.id) ? "Incluído" : "Incluir"}</button>
           </article>) : <p className="room-combat-character-empty">Nenhum personagem do mestre disponível.</p>}
         </section>
         <section className="room-combat-character-group">
