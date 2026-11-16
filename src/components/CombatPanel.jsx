@@ -215,7 +215,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
           defense: Number(character.sheet?.vitals?.defense) || 10,
           turn_order: sortedCombatants.length ? Math.max(...sortedCombatants.map((item) => item.turn_order)) + 1 : 1,
           sort_order: sortedCombatants.length,
-          turn_control: getSide(character) === "players" ? "player" : "gm",
+          turn_control: character.owner_id === userId ? "gm" : getSide(character) === "players" ? "player" : "gm",
           sheet_snapshot: character.sheet && typeof character.sheet === "object" ? character.sheet : {},
         },
       });
