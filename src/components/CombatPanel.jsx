@@ -47,6 +47,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   const [selectedActor, setSelectedActor] = useState("");
   const [selectedNewCombatant, setSelectedNewCombatant] = useState("");
   const [showCharacterPicker, setShowCharacterPicker] = useState(false);
+  const [selectedBeforeCombat, setSelectedBeforeCombat] = useState(() => new Set());
   const [selectedTarget, setSelectedTarget] = useState("");
   const [selectedAction, setSelectedAction] = useState("");
   const [manualDamage, setManualDamage] = useState("0");
@@ -127,7 +128,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     if (item.status !== "active" || item.game_system_id !== gameSystemId) return false;
     const isCampaignCharacter = item.campaign_id === campaignId && (
       item.campaign_approval_status === "approved"
-      || (isGm && item.character_type === "npc" && item.owner_id === userId)
+      || (isGm && item.owner_id === userId)
     );
     const isGmPersonalCharacter = isGm && !item.campaign_id && item.owner_id === userId;
     return isCampaignCharacter || isGmPersonalCharacter;
@@ -169,7 +170,12 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     if (!isGm || !isOrderSystem || busy || !approvedCharacters.length) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const ordered = approvedCharacters.map((character, index) => {
+      const charactersForEncounter = selectedBeforeCombat.size
+        ? approvedCharacters.filter((character) => selectedBeforeCombat.has(character.id))
+        : approvedCharacters;
+      if (!charactersForEncounter.length) throw new Error("Selecione ao menos um personagem para iniciar o combate.");
+
+      const ordered = charactersForEncounter.map((character, index) => {
         const initiative = getOrderInitiative(character);
         const vitals = getOrderVitals(character);
         return {
@@ -498,6 +504,37 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     finally { setBusy(false); }
   };
 
+  const characterPicker = isGm && isOrderSystem ? (
+    <div className="panel room-combat-admin room-combat-preparation-picker">
+      <div className="room-battle-heading">
+        <div><span className="eyebrow">ELENCO DO CONFRONTO</span><h3>Adicionar personagens</h3><p>Escolha quem participará da iniciativa. Personagens do mestre e dos jogadores ficam separados.</p></div>
+        <button className="button button-secondary" type="button" disabled={busy || !availableToAdd.length} onClick={() => setShowCharacterPicker((value) => !value)}>
+          {showCharacterPicker ? "Fechar lista" : "Adicionar personagens"} ({availableToAdd.length})
+        </button>
+      </div>
+      {showCharacterPicker && <div className="room-combat-character-groups">
+        <section className="room-combat-character-group">
+          <header><strong>Do mestre</strong><small>Personagens e NPCs criados pelo mestre</small></header>
+          {masterAvailableCharacters.length ? masterAvailableCharacters.map((item) => <article className="room-combat-character-option" key={item.id}>
+            <div><strong>{item.name}</strong><small>{item.character_type === "npc" ? "NPC do mestre" : "Personagem do mestre"}{item.npc_role ? " · " + ({enemy:"Inimigo",ally:"Aliado",neutral:"Neutro"}[item.npc_role] || "NPC") : ""}{!item.campaign_id ? " · Pessoal" : " · Campanha"}</small></div>
+            <button className="button button-secondary" type="button" disabled={busy} onClick={() => setSelectedBeforeCombat((current) => new Set(current).add(item.id))}>{selectedBeforeCombat.has(item.id) ? "Incluído" : "Incluir"}</button>
+          </article>) : <p className="room-combat-character-empty">Nenhum personagem do mestre disponível.</p>}
+        </section>
+        <section className="room-combat-character-group">
+          <header><strong>Dos jogadores</strong><small>Personagens aprovados, separados pelo proprietário</small></header>
+          {playerAvailableGroups.length ? playerAvailableGroups.map((group) => <div className="room-combat-player-group" key={group.ownerId}>
+            <h4>{group.ownerName}</h4>
+            {group.characters.map((item) => <article className="room-combat-character-option" key={item.id}>
+              <div><strong>{item.name}</strong><small>{item.character_type === "npc" ? "NPC criado pelo jogador" : "Personagem do jogador"}{item.npc_role ? " · " + ({enemy:"Inimigo",ally:"Aliado",neutral:"Neutro"}[item.npc_role] || "NPC") : ""}</small></div>
+              <button className="button button-secondary" type="button" disabled={busy} onClick={() => setSelectedBeforeCombat((current) => new Set(current).add(item.id))}>{selectedBeforeCombat.has(item.id) ? "Incluído" : "Incluir"}</button>
+            </article>)}
+          </div>) : <p className="room-combat-character-empty">Nenhum personagem de jogador aprovado e disponível.</p>}
+        </section>
+      </div>}
+      {!encounter && selectedBeforeCombat.size > 0 && <small>{selectedBeforeCombat.size} personagem(ns) selecionado(s) para a iniciativa.</small>}
+    </div>
+  ) : null;
+
   if (loading) return <div className="panel room-combat-empty">Carregando estrutura de combate...</div>;
   return <div className="room-combat-system">
     <div className="room-combat-toolbar">
@@ -512,6 +549,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     {!isOrderSystem && <p className="room-readonly-note">O motor de combate está disponível inicialmente para campanhas de Ordem Paranormal. Os demais sistemas serão integrados em etapas próprias.</p>}
     {error && <p className="room-error" role="alert">{error}</p>}
     {notice && <p className="room-combat-notice" role="status">{notice}</p>}
+    {!encounter && characterPicker}
     {!encounter ? <div className="panel room-combat-empty"><Swords size={28}/><strong>Nenhum combate ativo</strong><p>{isGm ? "Personagens aprovados e NPCs criados pelo mestre estarão disponíveis na iniciativa." : "Aguardando o mestre iniciar o combate."}</p><small>{approvedCharacters.length} combatentes disponíveis</small></div> : <>
       <div className="room-combat-status"><span><Timer size={14}/> Rodada {encounter.round_number}</span><strong>{encounter.turns_paused ? "Turnos pausados" : currentCombatant ? `Vez de ${currentCombatant.character_name}` : "Sem turno liberado"}</strong>{isMyTurn && !encounter.turns_paused && <em>Sua vez</em>}</div>
       <div className="room-combat-layout">
@@ -545,33 +583,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
             {actorForControls && <div className="room-combat-actions-row"><label><span>Dano</span><input type="number" min="0" value={manualDamage} onChange={(e)=>setManualDamage(e.target.value)}/></label><label><span>Cura</span><input type="number" min="0" value={manualHealing} onChange={(e)=>setManualHealing(e.target.value)}/></label><button className="button button-secondary" type="button" disabled={busy || !targetCombatant || (!Number(manualDamage)&&!Number(manualHealing))} onClick={applyManualChange}>Aplicar ao alvo</button></div>}
             <label className="room-combat-field"><span>Alvo para dano ou cura</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione o alvo</option>{sortedCombatants.map((item)=><option key={item.id} value={item.character_id}>{item.character_name}</option>)}</select></label>
             {actorForControls && <div className="room-combat-actions-row"><label><span>Ação do combatente</span><select value={selectedAction} onChange={(e)=>setSelectedAction(e.target.value)}><option value="">Selecione ataque/habilidade</option>{actorAttacks.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Ataque · {a.name}</option>)}{actorAbilities.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Habilidade · {a.name}</option>)}</select></label><button className="button button-primary" type="button" disabled={busy || !selectedActionObject || (actorAttacks.includes(selectedActionObject)&&!targetCombatant)||((selectedActionObject?.effectType!=="utility"||selectedActionObject?.statusEffect)&&actorAbilities.includes(selectedActionObject)&&!targetCombatant)} onClick={()=>submitAction(actorForControls,targetCombatant,selectedActionObject,actorAttacks.includes(selectedActionObject)?"attack":"ability",true)}>Executar ação</button></div>}
-            <div className="room-combat-character-picker">
-              <div className="room-combat-character-picker-heading">
-                <div><strong>Personagens disponíveis</strong><small>Separados por responsável e tipo para evitar confusão.</small></div>
-                <button className="button button-secondary" type="button" disabled={busy} onClick={() => setShowCharacterPicker((value) => !value)}>
-                  {showCharacterPicker ? "Fechar lista" : "Adicionar personagens"} ({availableToAdd.length})
-                </button>
-              </div>
-              {showCharacterPicker && <div className="room-combat-character-groups">
-                <section className="room-combat-character-group">
-                  <header><strong>Do mestre</strong><small>Fichas e NPCs criados pelo mestre</small></header>
-                  {masterAvailableCharacters.length ? masterAvailableCharacters.map((item) => <article className="room-combat-character-option" key={item.id}>
-                    <div><strong>{item.name}</strong><small>{item.character_type === "npc" ? "NPC do mestre" : "Personagem do mestre"}{item.npc_role ? " · " + ({enemy:"Inimigo",ally:"Aliado",neutral:"Neutro"}[item.npc_role] || "NPC") : ""}{!item.campaign_id ? " · Pessoal" : " · Campanha"}</small></div>
-                    <button className="button button-secondary" type="button" disabled={busy} onClick={() => addCombatant(item.id)}>Adicionar</button>
-                  </article>) : <p className="room-combat-character-empty">Nenhum personagem do mestre disponível.</p>}
-                </section>
-                <section className="room-combat-character-group">
-                  <header><strong>Dos jogadores</strong><small>Separados pelo proprietário da ficha</small></header>
-                  {playerAvailableGroups.length ? playerAvailableGroups.map((group) => <div className="room-combat-player-group" key={group.ownerId}>
-                    <h4>{group.ownerName}</h4>
-                    {group.characters.map((item) => <article className="room-combat-character-option" key={item.id}>
-                      <div><strong>{item.name}</strong><small>{item.character_type === "npc" ? "NPC criado pelo jogador" : "Personagem do jogador"}{item.npc_role ? " · " + ({enemy:"Inimigo",ally:"Aliado",neutral:"Neutro"}[item.npc_role] || "NPC") : ""}</small></div>
-                      <button className="button button-secondary" type="button" disabled={busy} onClick={() => addCombatant(item.id)}>Adicionar</button>
-                    </article>)}
-                  </div>) : <p className="room-combat-character-empty">Nenhum personagem de jogador aprovado e disponível.</p>}
-                </section>
-              </div>}
-            </div>
+            {characterPicker}
             <div className="room-combat-actions-row"><label><span>Efeito periódico</span><input value={effectName} onChange={(e)=>setEffectName(e.target.value)} placeholder="Veneno"/></label><label><span>Duração (dados)</span><input value={effectDurationFormula} onChange={(e)=>setEffectDurationFormula(e.target.value)} placeholder="1d5"/></label><label><span>Dano por turno</span><input value={effectDamageFormula} onChange={(e)=>setEffectDamageFormula(e.target.value)} placeholder="1d4"/></label><label><span>Se já existir</span><select value={effectDuplicateMode} onChange={(e)=>setEffectDuplicateMode(e.target.value)}><option value="refresh">Renovar duração</option><option value="replace">Substituir</option><option value="stack">Acumular</option></select></label><button className="button button-secondary" type="button" disabled={busy||!targetCombatant||!effectName.trim()} onClick={applyPeriodicEffect}>Aplicar efeito</button></div>
             <button className="button button-secondary" type="button" disabled={busy || !eligibleCombatants.length} onClick={()=>advanceTurn(true)}><SkipForward size={14}/> Pular turno atual</button>
           </div>}
