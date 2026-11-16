@@ -1,0 +1,143 @@
+/* Dedicated combat workspace — visual layer only; combat rules and persistence remain unchanged. */
+.room-combat-system{
+  --combat-bg:#111117;--combat-panel:#1a1a22;--combat-panel-raised:#20202a;
+  --combat-line:rgba(220,202,170,.13);--combat-gold:#d5b477;--combat-muted:#a19ba7;
+  display:flex;flex-direction:column;gap:18px;color:#eee9df;
+}
+.room-combat-system .room-combat-toolbar{
+  position:relative;isolation:isolate;overflow:hidden;align-items:center;min-height:116px;
+  padding:24px 26px;border:1px solid rgba(213,180,119,.24);border-radius:16px;
+  background:radial-gradient(ellipse at 86% 0%,rgba(151,91,69,.2),transparent 42%),
+    linear-gradient(120deg,#24212a 0%,#191920 58%,#17171e 100%);
+  box-shadow:0 14px 34px rgba(0,0,0,.16);
+}
+.room-combat-system .room-combat-toolbar:after{
+  position:absolute;z-index:-1;right:7%;top:-68px;width:190px;height:190px;
+  border:1px solid rgba(213,180,119,.12);border-radius:50%;
+  box-shadow:0 0 0 18px rgba(213,180,119,.025),0 0 0 38px rgba(213,180,119,.018);
+  content:"";
+}
+.room-combat-system .room-combat-toolbar .eyebrow{color:#c8a66f;letter-spacing:.2em}
+.room-combat-system .room-combat-toolbar h3{margin:7px 0;color:#f1e8d8;font-size:clamp(22px,2.2vw,29px);letter-spacing:.01em}
+.room-combat-system .room-combat-toolbar p{max-width:560px;color:#aaa2ad;font-size:11px}
+.room-combat-system .room-combat-toolbar-actions{position:relative;z-index:1;gap:8px}
+.room-combat-system .room-combat-toolbar-actions .button,
+.room-combat-system .room-combat-toolbar>.button{min-height:39px;padding:0 13px;border-radius:8px;font-size:10px}
+.room-combat-system .room-combat-status{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;
+  min-height:64px;padding:13px 19px;border:1px solid rgba(213,180,119,.22);border-radius:12px;
+  background:linear-gradient(100deg,rgba(213,180,119,.1),rgba(255,255,255,.018) 65%);
+  box-shadow:inset 3px 0 0 #b58c55;
+}
+.room-combat-system .room-combat-status span{color:#d1b47f;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.room-combat-system .room-combat-status strong{overflow:hidden;color:#f2e9da;font-size:14px;text-align:center;text-overflow:ellipsis;white-space:nowrap}
+.room-combat-system .room-combat-status em{padding:7px 11px;border:1px solid rgba(118,174,126,.25);border-radius:99px;color:#b7d8b5;background:rgba(85,145,92,.13);font-size:9px}
+.room-combat-system .room-combat-layout{grid-template-columns:minmax(0,1.55fr) minmax(285px,.75fr);gap:18px}
+.room-combat-system .room-combat-main,.room-combat-system .room-combat-side{gap:16px}
+.room-combat-system .room-combatant-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.room-combat-system .room-combatant{
+  position:relative;min-height:116px;align-items:flex-start;gap:12px;padding:15px;
+  border:1px solid var(--combat-line);border-radius:12px;background:linear-gradient(145deg,#20202a,#191920);
+  box-shadow:0 5px 16px rgba(0,0,0,.12);transition:border-color .16s ease,background .16s ease,transform .16s ease;
+}
+.room-combat-system .room-combatant.active{
+  border-color:rgba(213,180,119,.65);
+  background:linear-gradient(120deg,rgba(161,119,68,.18),#20202a 72%);
+  box-shadow:inset 3px 0 0 #d5b477,0 8px 22px rgba(0,0,0,.18);
+}
+.room-combat-system .room-combatant.blocked{opacity:.52;filter:saturate(.65)}
+.room-combat-system .room-combatant-order{
+  width:32px;height:32px;border-color:rgba(213,180,119,.3);border-radius:9px;
+  color:#e1c28b;background:rgba(213,180,119,.08);font-size:15px;
+}
+.room-combat-system .room-combatant-info{gap:7px}
+.room-combat-system .room-combatant-info>strong{color:#f1e9dc;font-size:12px}
+.room-combat-system .room-combatant-info>small{color:#a7a0aa;font-size:9px;line-height:1.45}
+.room-combat-system .room-combatant-hp{height:7px;margin-top:2px;background:rgba(255,255,255,.09)}
+.room-combat-system .room-combatant-hp span{background:linear-gradient(90deg,#8c4147,#cf796b)}
+.room-combat-system .room-combatant-controls{gap:4px}
+.room-combat-system .room-combatant-controls .icon-button{width:28px;height:28px;border:1px solid rgba(255,255,255,.08);border-radius:7px;background:rgba(255,255,255,.035)}
+.room-combat-system .room-combat-admin,
+.room-combat-system .room-player-actions,
+.room-combat-system .room-combat-requests,
+.room-combat-system .room-combat-log,
+.room-combat-system .room-combat-effects,
+.room-combat-system .room-combat-preparation-picker{
+  gap:14px;padding:18px;border:1px solid var(--combat-line);border-radius:13px;
+  background:linear-gradient(145deg,#20202a,#191920);box-shadow:0 8px 24px rgba(0,0,0,.13);
+}
+.room-combat-system .room-battle-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.room-combat-system .room-battle-heading .eyebrow{color:#bd9c68;letter-spacing:.16em}
+.room-combat-system .room-battle-heading h3,
+.room-combat-system .room-player-actions h3{margin:5px 0 0;color:#f0e7d8;font:20px "Marcellus",Georgia,serif}
+.room-combat-system .room-battle-heading p{margin:6px 0 0;color:var(--combat-muted);font-size:10px;line-height:1.6}
+.room-combat-system .room-combat-field{gap:7px}
+.room-combat-system .room-combat-field>span,
+.room-combat-system .room-combat-actions-row label>span{color:#c4b9a9;font-size:9px;font-weight:600;letter-spacing:.04em}
+.room-combat-system .room-combat-field select,
+.room-combat-system .room-combat-actions-row input,
+.room-combat-system .room-combat-actions-row select{
+  min-height:39px;padding:9px 11px;border:1px solid rgba(220,202,170,.16);border-radius:8px;
+  outline:none;color:#eee8df;background:#15151c;font:11px inherit;
+}
+.room-combat-system .room-combat-field select:focus,
+.room-combat-system .room-combat-actions-row input:focus,
+.room-combat-system .room-combat-actions-row select:focus{border-color:rgba(213,180,119,.62);box-shadow:0 0 0 3px rgba(213,180,119,.08)}
+.room-combat-system .room-combat-action-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.room-combat-system .room-combat-action-cards article{
+  min-height:116px;align-items:flex-start;padding:14px;border:1px solid rgba(213,180,119,.16);
+  border-radius:10px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+}
+.room-combat-system .room-combat-action-cards strong{color:#f0e7d8;font-size:11px}
+.room-combat-system .room-combat-action-cards small{color:#d1ad75;font-size:9px}
+.room-combat-system .room-combat-action-cards p{color:#aaa3ad;font-size:10px;line-height:1.55}
+.room-combat-system .room-combat-action-cards .button{min-height:31px;padding:0 11px;border-radius:7px;font-size:9px}
+.room-combat-system .room-combat-requests article,
+.room-combat-system .room-combat-effects article{gap:8px;padding:13px 0;border-color:rgba(255,255,255,.08)}
+.room-combat-system .room-combat-requests article strong,
+.room-combat-system .room-combat-effects article strong{color:#eee7dc;font-size:10px}
+.room-combat-system .room-combat-requests article small,
+.room-combat-system .room-combat-effects article small{color:#b6a58a;font-size:9px;line-height:1.5}
+.room-combat-system .room-combat-requests article>div{gap:8px}
+.room-combat-system .room-combat-requests article>div .button{min-height:34px;border-radius:7px;font-size:9px}
+.room-combat-system .room-combat-log{max-height:480px;overflow:auto}
+.room-combat-system .room-combat-log p{gap:10px;padding:11px 0;color:#d0c8bd;font-size:10px;line-height:1.6}
+.room-combat-system .room-combat-log p time{color:#c5a36d;font-variant-numeric:tabular-nums}
+.room-combat-system .room-combat-notice,
+.room-combat-system .room-error{padding:12px 15px;border-radius:9px;font-size:10px;line-height:1.5}
+.room-combat-system .room-combat-character-groups{gap:12px}
+.room-combat-system .room-combat-character-group{gap:10px;padding:14px;border-color:rgba(220,202,170,.12);border-radius:10px;background:rgba(0,0,0,.14)}
+.room-combat-system .room-combat-character-group>header strong{color:#e9ddc9;font-size:11px}
+.room-combat-system .room-combat-character-group>header small{font-size:9px}
+.room-combat-system .room-combat-character-option{padding:10px;border-color:rgba(255,255,255,.07);border-radius:8px;background:rgba(255,255,255,.025)}
+.room-combat-system .room-combat-character-option strong{font-size:10px}
+.room-combat-system .room-combat-character-option small{font-size:9px}
+.room-combat-system .room-combat-empty{min-height:230px;border:1px dashed rgba(213,180,119,.22);border-radius:14px;background:rgba(255,255,255,.015)}
+.room-combat-system .room-combat-empty strong{font-size:20px}
+.room-combat-system .room-combat-empty p,
+.room-combat-system .room-combat-empty small{font-size:11px}
+.room-combat-system .room-readonly-note{padding:12px 14px;border:1px solid rgba(213,180,119,.13);border-radius:9px;color:#b7ac9c;background:rgba(213,180,119,.045);font-size:10px;line-height:1.6}
+@media(max-width:1100px){
+  .room-combat-system .room-combat-layout{grid-template-columns:minmax(0,1fr)}
+  .room-combat-system .room-combat-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .room-combat-system .room-combat-log{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .room-combat-system{gap:13px}
+  .room-combat-system .room-combat-toolbar{padding:19px}
+  .room-combat-system .room-combat-toolbar-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .room-combat-system .room-combat-toolbar-actions .button:last-child{grid-column:1/-1}
+  .room-combat-system .room-combat-status{grid-template-columns:1fr auto;gap:8px;padding:12px}
+  .room-combat-system .room-combat-status strong{grid-column:1/-1;grid-row:2;text-align:left}
+  .room-combat-system .room-combatant-list{grid-template-columns:1fr}
+  .room-combat-system .room-combat-side{display:flex}
+  .room-combat-system .room-combat-action-cards{grid-template-columns:1fr}
+  .room-combat-system .room-combatant{flex-wrap:wrap}
+  .room-combat-system .room-combatant-controls{width:100%;justify-content:flex-end;margin-left:0}
+  .room-combat-system .room-combat-actions-row{align-items:stretch;flex-direction:column}
+  .room-combat-system .room-combat-actions-row label,
+  .room-combat-system .room-combat-actions-row>.button{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  .room-combat-system *{scroll-behavior:auto!important;transition:none!important}
+}
