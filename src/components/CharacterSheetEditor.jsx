@@ -69,45 +69,140 @@ function TextField({ label, value, onChange, rows = 3, placeholder = "", disable
   return <label className="sheet-field sheet-field-wide"><span>{label}</span><textarea rows={rows} value={value ?? ""} placeholder={placeholder} disabled={disabled} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
+const ATTACK_CATEGORIES = [
+  ["melee", "Corpo a corpo"],
+  ["ranged", "À distância"],
+  ["supernatural", "Sobrenatural"],
+  ["custom", "Personalizado"],
+];
+
+const ABILITY_CATEGORIES = [
+  ["active", "Ativa"],
+  ["passive", "Passiva"],
+  ["reaction", "Reação"],
+  ["ritual", "Ritual"],
+  ["custom", "Personalizada"],
+];
+
 function normalizeCombatActions(value, kind) {
-  if (Array.isArray(value)) return value.map((item, index) => typeof item === "string"
-    ? { id: `${kind}-${index}`, name: item, description: "", testFormula: "1d20", damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", peCost: 0, actionCost: "padrão", range: "" }
-    : { id: item.id || `${kind}-${index}`, name: item.name || "", description: item.description || "", testFormula: item.testFormula || "1d20", damageFormula: item.damageFormula || "", criticalExtraFormula: item.criticalExtraFormula || "", healingFormula: item.healingFormula || "", effectType: item.effectType || (kind === "attack" ? "damage" : "utility"), actionType: item.actionType || (kind === "attack" ? "attack" : "ability"), statusEffect: item.statusEffect || "", peCost: Number(item.peCost) || 0, actionCost: item.actionCost || "padrão", range: item.range || "", skill: item.skill || "Luta" });
-  if (typeof value === "string" && value.trim()) return value.split("\n").filter(Boolean).map((name, index) => ({
-    id: `${kind}-legacy-${index}`, name, description: "", testFormula: "1d20", damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", healingFormula: "", effectType: kind === "attack" ? "damage" : "utility", actionType: kind === "attack" ? "attack" : "ability", statusEffect: "", peCost: 0, actionCost: "padrão", range: "", skill: "Luta",
-  }));
+  const defaultCategory = kind === "attack" ? "melee" : "active";
+  const legacyAction = (item, index) => {
+    const action = typeof item === "string" ? { name: item } : item || {};
+    return {
+      id: action.id || kind + "-" + index,
+      name: action.name || "",
+      description: action.description || "",
+      category: action.category || defaultCategory,
+      customType: action.customType || "",
+      testFormula: action.testFormula || "1d20",
+      damageFormula: action.damageFormula || (kind === "attack" ? "2d10" : ""),
+      criticalExtraFormula: action.criticalExtraFormula || "",
+      healingFormula: action.healingFormula || "",
+      effectType: action.effectType || (kind === "attack" ? "damage" : "utility"),
+      actionType: action.actionType || (kind === "attack" ? "attack" : "ability"),
+      statusEffect: action.statusEffect || "",
+      peCost: Number(action.peCost) || 0,
+      actionCost: action.actionCost || "padrão",
+      range: action.range || (kind === "attack" ? "Corpo a corpo" : ""),
+      skill: action.skill || (kind === "attack" ? "Luta" : "Luta"),
+    };
+  };
+
+  if (Array.isArray(value)) return value.map(legacyAction);
+  if (typeof value === "string" && value.trim()) {
+    return value.split("\n").filter(Boolean).map((name, index) => legacyAction(name, index));
+  }
   return [];
 }
 
+function SelectField({ label, value, onChange, options }) {
+  return <label className="sheet-field">
+    <span>{label}</span>
+    <select value={value ?? ""} onChange={(event) => onChange(event.target.value)}>
+      {options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}
+    </select>
+  </label>;
+}
+
 function CombatActionEditor({ title, actions, kind, onChange }) {
-  const update = (index, key, value) => onChange(actions.map((item, i) => i === index ? { ...item, [key]: value, ...(key === "actionType" && ["dodge", "counterattack", "defend"].includes(value) && item.actionCost === "padrão" ? { actionCost: "reação" } : {}), ...(key === "actionType" && value === "counterattack" ? { effectType: "damage" } : {}) } : item));
+  const isAttack = kind === "attack";
+  const categories = isAttack ? ATTACK_CATEGORIES : ABILITY_CATEGORIES;
+  const update = (index, key, value) => onChange(actions.map((item, i) => {
+    if (i !== index) return item;
+    const next = { ...item, [key]: value };
+    if (key === "category") {
+      if (isAttack) {
+        if (value === "melee") Object.assign(next, { skill: "Luta", range: "Corpo a corpo" });
+        if (value === "ranged") Object.assign(next, { skill: "Pontaria", range: "À distância" });
+        if (value === "supernatural") Object.assign(next, { skill: "Ocultismo", actionCost: "padrão" });
+      } else {
+        if (value === "passive") Object.assign(next, { actionType: "ability", actionCost: "passiva", peCost: 0 });
+        if (value === "reaction") Object.assign(next, { actionType: "defend", actionCost: "reação" });
+        if (value === "ritual") Object.assign(next, { actionType: "ability", skill: "Ocultismo" });
+        if (value === "active") Object.assign(next, { actionType: "ability", actionCost: "padrão" });
+      }
+    }
+    if (key === "actionType" && ["dodge", "counterattack", "defend"].includes(value)) next.actionCost = "reação";
+    if (key === "actionType" && value === "counterattack") next.effectType = "damage";
+    return next;
+  }));
+
   const add = () => onChange([...actions, {
-    id: `${kind}-${Date.now()}`, name: "", description: "", testFormula: "1d20",
-    damageFormula: kind === "attack" ? "2d10" : "", criticalExtraFormula: "", healingFormula: "", effectType: kind === "attack" ? "damage" : "utility", actionType: kind === "attack" ? "attack" : "ability", statusEffect: "", peCost: 0,
-    actionCost: "padrão", range: "", skill: "Luta",
+    id: kind + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+    name: "",
+    description: "",
+    category: isAttack ? "melee" : "active",
+    customType: "",
+    testFormula: "1d20",
+    damageFormula: isAttack ? "2d10" : "",
+    criticalExtraFormula: "",
+    healingFormula: "",
+    effectType: isAttack ? "damage" : "utility",
+    actionType: isAttack ? "attack" : "ability",
+    statusEffect: "",
+    peCost: 0,
+    actionCost: "padrão",
+    range: isAttack ? "Corpo a corpo" : "",
+    skill: "Luta",
   }]);
+
   return <Section title={title} variant="combat-actions">
-    {actions.map((action, index) => <div className="sheet-combat-action" key={action.id || index}>
-      <div className="sheet-combat-action-heading"><strong>{action.name || `${kind === "attack" ? "Novo ataque" : "Nova habilidade"} ${index + 1}`}</strong><button type="button" className="button button-secondary" onClick={() => onChange(actions.filter((_, i) => i !== index))}>Remover</button></div>
-      <div className="character-sheet-grid">
-        <Field label="Nome" value={action.name} onChange={(v) => update(index, "name", v)} />
-        <Field label="Perícia / teste" value={action.skill} onChange={(v) => update(index, "skill", v)} placeholder="Luta, Pontaria, Ocultismo..." />
-        <Field label="Rolagem para acertar" value={action.testFormula} onChange={(v) => update(index, "testFormula", v)} placeholder="1d20" />
-        {kind === "attack" && <Field label="Dano" value={action.damageFormula} onChange={(v) => update(index, "damageFormula", v)} placeholder="2d10" />}
-        {kind === "attack" && <Field label="Dano adicional no crítico" value={action.criticalExtraFormula} onChange={(v) => update(index, "criticalExtraFormula", v)} placeholder="1d4" />}
-        {kind === "ability" && <>
-          <Field label="Tipo de efeito (damage, healing, utility)" value={action.effectType} onChange={(v) => update(index, "effectType", v)} placeholder="utility" />
-          <Field label="Ação (ability, dodge, counterattack, defend)" value={action.actionType} onChange={(v) => update(index, "actionType", v)} placeholder="ability" />
-          <Field label="Fórmula de cura" value={action.healingFormula} onChange={(v) => update(index, "healingFormula", v)} placeholder="2d6" />
-          <Field label="Condição / efeito aplicado" value={action.statusEffect} onChange={(v) => update(index, "statusEffect", v)} placeholder="Atordoado, vulnerável..." />
-        </>}
-        <Field label="Custo em PE" type="number" min={0} value={action.peCost} onChange={(v) => update(index, "peCost", v)} />
-        <Field label="Custo de ação" value={action.actionCost} onChange={(v) => update(index, "actionCost", v)} placeholder="padrão, movimento, livre..." />
-        <Field label="Alcance" value={action.range} onChange={(v) => update(index, "range", v)} />
-        <TextField label="Descrição e efeitos" value={action.description} onChange={(v) => update(index, "description", v)} rows={2} />
-      </div>
-    </div>)}
-    <button type="button" className="button button-secondary" onClick={add}>Adicionar {kind === "attack" ? "ataque" : "habilidade"}</button>
+    {actions.map((action, index) => {
+      const category = action.category || (isAttack ? "melee" : "active");
+      const isCustom = category === "custom";
+      const isPassive = !isAttack && category === "passive";
+      const isReaction = !isAttack && category === "reaction";
+      const isRitual = !isAttack && category === "ritual";
+      const showTest = isAttack || isReaction || isRitual || (!isPassive && action.effectType !== "utility");
+      const showDamage = isAttack || action.effectType === "damage" || (isReaction && action.actionType === "counterattack");
+      const showHealing = !isAttack && !isPassive && action.effectType === "healing";
+      const showStatus = !isAttack && (action.effectType === "utility" || Boolean(action.statusEffect));
+      return <div className="sheet-combat-action" key={action.id || index}>
+        <div className="sheet-combat-action-heading">
+          <strong>{action.name || (isAttack ? "Novo ataque " : "Nova habilidade ") + (index + 1)}</strong>
+          <button type="button" className="button button-secondary" onClick={() => onChange(actions.filter((_, i) => i !== index))}>Remover</button>
+        </div>
+        <div className="character-sheet-grid">
+          <SelectField label={isAttack ? "Tipo de ataque" : "Tipo de habilidade"} value={category} onChange={(v) => update(index, "category", v)} options={categories} />
+          {isCustom && <Field label="Nome do tipo personalizado" value={action.customType} onChange={(v) => update(index, "customType", v)} placeholder={isAttack ? "Ex.: Armadilha, disparo especial..." : "Ex.: Invocação, talento único..."} />}
+          <Field label="Nome" value={action.name} onChange={(v) => update(index, "name", v)} />
+          {!isPassive && <Field label="Custo de ação" value={action.actionCost} onChange={(v) => update(index, "actionCost", v)} placeholder="padrão, movimento, livre..." />}
+          {isAttack && <Field label="Perícia" value={action.skill} onChange={(v) => update(index, "skill", v)} placeholder="Luta ou Pontaria" />}
+          {!isAttack && !isPassive && !isReaction && <SelectField label="Tipo de efeito" value={action.effectType} onChange={(v) => update(index, "effectType", v)} options={[["damage", "Dano"], ["healing", "Cura"], ["utility", "Efeito / utilidade"]]} />}
+          {!isAttack && isReaction && <SelectField label="Tipo de reação" value={action.actionType} onChange={(v) => update(index, "actionType", v)} options={[["dodge", "Esquivar"], ["counterattack", "Contra-atacar"], ["defend", "Defender"]]} />}
+          {showTest && <Field label="Teste / rolagem" value={action.testFormula} onChange={(v) => update(index, "testFormula", v)} placeholder="1d20" />}
+          {showTest && !isAttack && <Field label="Perícia" value={action.skill} onChange={(v) => update(index, "skill", v)} placeholder="Luta, Ocultismo..." />}
+          {showDamage && <Field label="Dano" value={action.damageFormula} onChange={(v) => update(index, "damageFormula", v)} placeholder="2d10" />}
+          {showDamage && <Field label="Dano adicional no crítico" value={action.criticalExtraFormula} onChange={(v) => update(index, "criticalExtraFormula", v)} placeholder="1d4" />}
+          {showHealing && <Field label="Fórmula de cura" value={action.healingFormula} onChange={(v) => update(index, "healingFormula", v)} placeholder="2d6" />}
+          {showStatus && <Field label="Condição / efeito aplicado" value={action.statusEffect} onChange={(v) => update(index, "statusEffect", v)} placeholder="Atordoado, vulnerável, protegido..." />}
+          {!isPassive && <Field label="Custo em PE" type="number" min={0} value={action.peCost} onChange={(v) => update(index, "peCost", v)} />}
+          {!isPassive && <Field label="Alcance" value={action.range} onChange={(v) => update(index, "range", v)} placeholder="Corpo a corpo, curto, longo..." />}
+          <TextField label={isPassive ? "Descrição e condição de ativação" : "Descrição e efeitos"} value={action.description} onChange={(v) => update(index, "description", v)} rows={2} />
+        </div>
+      </div>;
+    })}
+    <button type="button" className="button button-secondary" onClick={add}>Adicionar {isAttack ? "ataque" : "habilidade"}</button>
   </Section>;
 }
 
