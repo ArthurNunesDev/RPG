@@ -548,7 +548,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
             <div className="room-combat-character-picker">
               <div className="room-combat-character-picker-heading">
                 <div><strong>Personagens disponíveis</strong><small>Separados por responsável e tipo para evitar confusão.</small></div>
-                <button className="button button-secondary" type="button" disabled={busy || !availableToAdd.length} onClick={() => setShowCharacterPicker((value) => !value)}>
+                <button className="button button-secondary" type="button" disabled={busy} onClick={() => setShowCharacterPicker((value) => !value)}>
                   {showCharacterPicker ? "Fechar lista" : "Adicionar personagens"} ({availableToAdd.length})
                 </button>
               </div>
