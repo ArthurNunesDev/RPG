@@ -25,7 +25,7 @@ function describeEvent(event) {
   return result.message || (event.event_type === "initiative" ? "Iniciativa registrada." : event.event_type);
 }
 
-export default function CombatPanel({ sessionId, campaignId, gameSystemId, characters, userId, isGm, isObserver }) {
+export default function CombatPanel({ sessionId, campaignId, gameSystemId, characters, memberNames, userId, isGm, isObserver }) {
   const [encounter, setEncounter] = useState(null);
   const [systemSlug, setSystemSlug] = useState("");
   const [combatants, setCombatants] = useState([]);
@@ -46,6 +46,7 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   const [notice, setNotice] = useState("");
   const [selectedActor, setSelectedActor] = useState("");
   const [selectedNewCombatant, setSelectedNewCombatant] = useState("");
+  const [showCharacterPicker, setShowCharacterPicker] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState("");
   const [selectedAction, setSelectedAction] = useState("");
   const [manualDamage, setManualDamage] = useState("0");
@@ -137,6 +138,23 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
   const ownCombatant = sortedCombatants.find((item) => item.owner_id === userId && item.side === "players" && item.is_active && !item.turn_blocked && item.turn_control === "player") ?? null;
   const pendingRequests = requests.filter((request) => request.status === "pending");
   const availableToAdd = approvedCharacters.filter((character) => !combatants.some((item) => item.character_id === character.id));
+  const masterAvailableCharacters = useMemo(
+    () => availableToAdd.filter((character) => character.owner_id === userId),
+    [availableToAdd, userId],
+  );
+  const playerAvailableGroups = useMemo(() => {
+    const groups = new Map();
+    availableToAdd.filter((character) => character.owner_id !== userId).forEach((character) => {
+      const ownerId = character.owner_id;
+      if (!groups.has(ownerId)) groups.set(ownerId, []);
+      groups.get(ownerId).push(character);
+    });
+    return [...groups.entries()].map(([ownerId, items]) => ({
+      ownerId,
+      ownerName: memberNames?.get?.(ownerId) || "Jogador",
+      characters: items,
+    })).sort((a, b) => a.ownerName.localeCompare(b.ownerName, "pt-BR"));
+  }, [availableToAdd, memberNames, userId]);
   const actorForControls = sortedCombatants.find((item) => item.character_id === selectedActor) ?? currentCombatant;
   const actorAttacks = getActions(actorForControls, "attacks");
   const actorAbilities = getActions(actorForControls, "abilities");
@@ -189,9 +207,9 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
     finally { setBusy(false); }
   };
 
-  const addCombatant = async () => {
-    if (!isGm || !encounter || busy || !selectedNewCombatant) return;
-    const character = availableToAdd.find((item) => item.id === selectedNewCombatant);
+  const addCombatant = async (characterId = selectedNewCombatant) => {
+    if (!isGm || !encounter || busy || !characterId) return;
+    const character = availableToAdd.find((item) => item.id === characterId);
     if (!character) return;
     setBusy(true); setError(""); setNotice("");
     try {
@@ -527,7 +545,33 @@ export default function CombatPanel({ sessionId, campaignId, gameSystemId, chara
             {actorForControls && <div className="room-combat-actions-row"><label><span>Dano</span><input type="number" min="0" value={manualDamage} onChange={(e)=>setManualDamage(e.target.value)}/></label><label><span>Cura</span><input type="number" min="0" value={manualHealing} onChange={(e)=>setManualHealing(e.target.value)}/></label><button className="button button-secondary" type="button" disabled={busy || !targetCombatant || (!Number(manualDamage)&&!Number(manualHealing))} onClick={applyManualChange}>Aplicar ao alvo</button></div>}
             <label className="room-combat-field"><span>Alvo para dano ou cura</span><select value={selectedTarget} onChange={(e)=>setSelectedTarget(e.target.value)}><option value="">Selecione o alvo</option>{sortedCombatants.map((item)=><option key={item.id} value={item.character_id}>{item.character_name}</option>)}</select></label>
             {actorForControls && <div className="room-combat-actions-row"><label><span>Ação do combatente</span><select value={selectedAction} onChange={(e)=>setSelectedAction(e.target.value)}><option value="">Selecione ataque/habilidade</option>{actorAttacks.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Ataque · {a.name}</option>)}{actorAbilities.map((a,i)=><option key={a.id||i} value={a.id||a.name}>Habilidade · {a.name}</option>)}</select></label><button className="button button-primary" type="button" disabled={busy || !selectedActionObject || (actorAttacks.includes(selectedActionObject)&&!targetCombatant)||((selectedActionObject?.effectType!=="utility"||selectedActionObject?.statusEffect)&&actorAbilities.includes(selectedActionObject)&&!targetCombatant)} onClick={()=>submitAction(actorForControls,targetCombatant,selectedActionObject,actorAttacks.includes(selectedActionObject)?"attack":"ability",true)}>Executar ação</button></div>}
-            <div className="room-combat-actions-row"><label><span>Adicionar personagem / NPC</span><select value={selectedNewCombatant} onChange={(e)=>setSelectedNewCombatant(e.target.value)}><option value="">Selecione</option>{availableToAdd.map((item)=><option key={item.id} value={item.id}>{item.name}{item.campaign_id ? "" : " · Pessoal"}</option>)}</select></label><button className="button button-secondary" type="button" disabled={busy || !selectedNewCombatant} onClick={addCombatant}>Adicionar</button></div>
+            <div className="room-combat-character-picker">
+              <div className="room-combat-character-picker-heading">
+                <div><strong>Personagens disponíveis</strong><small>Separados por responsável e tipo para evitar confusão.</small></div>
+                <button className="button button-secondary" type="button" disabled={busy || !availableToAdd.length} onClick={() => setShowCharacterPicker((value) => !value)}>
+                  {showCharacterPicker ? "Fechar lista" : "Adicionar personagens"} ({availableToAdd.length})
+                </button>
+              </div>
+              {showCharacterPicker && <div className="room-combat-character-groups">
+                <section className="room-combat-character-group">
+                  <header><strong>Do mestre</strong><small>Fichas e NPCs criados pelo mestre</small></header>
+                  {masterAvailableCharacters.length ? masterAvailableCharacters.map((item) => <article className="room-combat-character-option" key={item.id}>
+                    <div><strong>{item.name}</strong><small>{item.character_type === "npc" ? "NPC do mestre" : "Personagem do mestre"}{item.npc_role ? " · " + ({enemy:"Inimigo",ally:"Aliado",neutral:"Neutro"}[item.npc_role] || "NPC") : ""}{!item.campaign_id ? " · Pessoal" : " · Campanha"}</small></div>
+                    <button className="button button-secondary" type="button" disabled={busy} onClick={() => addCombatant(item.id)}>Adicionar</button>
+                  </article>) : <p className="room-combat-character-empty">Nenhum personagem do mestre disponível.</p>}
+                </section>
+                <section className="room-combat-character-group">
+                  <header><strong>Dos jogadores</strong><small>Separados pelo proprietário da ficha</small></header>
+                  {playerAvailableGroups.length ? playerAvailableGroups.map((group) => <div className="room-combat-player-group" key={group.ownerId}>
+                    <h4>{group.ownerName}</h4>
+                    {group.characters.map((item) => <article className="room-combat-character-option" key={item.id}>
+                      <div><strong>{item.name}</strong><small>{item.character_type === "npc" ? "NPC criado pelo jogador" : "Personagem do jogador"}{item.npc_role ? " · " + ({enemy:"Inimigo",ally:"Aliado",neutral:"Neutro"}[item.npc_role] || "NPC") : ""}</small></div>
+                      <button className="button button-secondary" type="button" disabled={busy} onClick={() => addCombatant(item.id)}>Adicionar</button>
+                    </article>)}
+                  </div>) : <p className="room-combat-character-empty">Nenhum personagem de jogador aprovado e disponível.</p>}
+                </section>
+              </div>}
+            </div>
             <div className="room-combat-actions-row"><label><span>Efeito periódico</span><input value={effectName} onChange={(e)=>setEffectName(e.target.value)} placeholder="Veneno"/></label><label><span>Duração (dados)</span><input value={effectDurationFormula} onChange={(e)=>setEffectDurationFormula(e.target.value)} placeholder="1d5"/></label><label><span>Dano por turno</span><input value={effectDamageFormula} onChange={(e)=>setEffectDamageFormula(e.target.value)} placeholder="1d4"/></label><label><span>Se já existir</span><select value={effectDuplicateMode} onChange={(e)=>setEffectDuplicateMode(e.target.value)}><option value="refresh">Renovar duração</option><option value="replace">Substituir</option><option value="stack">Acumular</option></select></label><button className="button button-secondary" type="button" disabled={busy||!targetCombatant||!effectName.trim()} onClick={applyPeriodicEffect}>Aplicar efeito</button></div>
             <button className="button button-secondary" type="button" disabled={busy || !eligibleCombatants.length} onClick={()=>advanceTurn(true)}><SkipForward size={14}/> Pular turno atual</button>
           </div>}
